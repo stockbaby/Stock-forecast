@@ -183,6 +183,33 @@ python scripts/fetch_benchmark_data.py `
   --end-date 2026-04-24
 ```
 
+如果 `baostock` 实际返回的最新日期不足以覆盖提交日前的最近窗口，可以再执行 AkShare 补全脚本：
+
+```powershell
+python scripts/supplement_with_akshare.py `
+  --input-path data/raw/stock_data.csv `
+  --output-path data/raw/stock_data.csv `
+  --hs300-list-path data/raw/hs300_stock_list.csv `
+  --start-date 2026-02-10 `
+  --end-date 2026-04-24 `
+  --adjust hfq
+```
+
+这个脚本会：
+
+- 读取现有 `stock_data.csv`
+- 自动识别每只股票当前最后日期
+- 只补缺失的尾部区间
+- 按与基准数据一致的中文字段格式写回
+- 保持同一股票数据块相邻
+
+说明：
+
+- 当前脚本默认将 AkShare 返回的 `成交量` 乘以 `100`
+- 这是为了尽量对齐 baostock 主文件中的“股数”口径
+- 这一点是基于 AkShare / 东财日线数据常见“手”为单位的接口习惯做的工程性处理
+- 后续我们可以再抽样核对几只股票的量级，必要时再调整
+
 然后再运行：
 
 在环境准备好后，运行：

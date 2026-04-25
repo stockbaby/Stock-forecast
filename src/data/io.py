@@ -18,7 +18,13 @@ OPTIONAL_NUMERIC_COLUMNS = [
 
 def discover_csv_files(raw_dir: str | Path) -> list[Path]:
     raw_path = Path(raw_dir)
-    return sorted(raw_path.glob("*.csv"))
+    candidates = sorted(raw_path.glob("*.csv"))
+    excluded_names = {
+        "hs300_stock_list.csv",
+        "failed_stocks.csv",
+        "failed_stocks_akshare.csv",
+    }
+    return [path for path in candidates if path.name not in excluded_names]
 
 
 def load_price_data(raw_dir: str | Path) -> pd.DataFrame:
@@ -67,6 +73,7 @@ def normalize_price_frame(df: pd.DataFrame) -> pd.DataFrame:
         "\u6da8\u8dcc\u5e45": "pct_chg",
     }
     out = df.rename(columns=rename_map).copy()
+    out = _coalesce_duplicate_columns(out)
 
     missing = [col for col in REQUIRED_PRICE_COLUMNS if col not in out.columns]
     if missing:
@@ -83,6 +90,24 @@ def normalize_price_frame(df: pd.DataFrame) -> pd.DataFrame:
     out = out.dropna(subset=["date", "stock_id", "open", "high", "low", "close"])
     out = out.sort_values(["stock_id", "date"]).reset_index(drop=True)
     return out
+
+
+def _coalesce_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    if not df.columns.duplicated().any():
+        return df
+
+    deduped = pd.DataFrame(index=df.index)
+    seen: set[str] = set()
+    for column in df.columns:
+        if column in seen:
+            continue
+        seen.add(column)
+        same_name = df.loc[:, df.columns == column]
+        if same_name.shape[1] == 1:
+            deduped[column] = same_name.iloc[:, 0]
+        else:
+            deduped[column] = same_name.bfill(axis=1).iloc[:, 0]
+    return deduped
 
 
 def _normalize_stock_id(value: object) -> str | None:
