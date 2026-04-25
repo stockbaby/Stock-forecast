@@ -169,6 +169,18 @@ python scripts/fetch_benchmark_data.py `
 - 导出 `stock_data.csv`
 - 支持增量更新和失败记录
 
+为了给 baseline 增加市场上下文，建议再抓一份沪深300指数历史：
+
+```powershell
+python scripts/fetch_hs300_index.py --output-path data/raw/hs300_index.csv --start-date 2015-01-01 --end-date 2026-04-24
+```
+
+如果 `data/raw/hs300_index.csv` 存在，当前数据集构建流程会自动加入：
+
+- 指数收益率
+- 指数均线偏离
+- 个股相对指数超额收益
+
 结合当前赛事通知，A 阶段第一次提交建议至少把数据补到：
 
 - `2026-04-24`
@@ -261,6 +273,43 @@ python scripts/train_baseline.py --config configs/baseline.yaml
 - `outputs/predictions/baseline_predictions.csv`
 - `outputs/predictions/baseline_metrics.json`
 - `outputs/submissions/result.csv`
+
+也可以单独校验提交文件格式：
+
+```powershell
+python scripts/validate_submission.py --input outputs/submissions/result_a_stage_round1.csv
+```
+
+如果你已经有某一轮提交对应的真实未来开盘价数据，还可以按赛题公式计算组合收益，并和基准程序结果做对比：
+
+```powershell
+python scripts/evaluate_submission_return.py `
+  --data-path data/raw/stock_data.csv `
+  --submission-path outputs/submissions/result_a_stage_round1.csv `
+  --trade-date 2026-04-17 `
+  --buy-offset 1 `
+  --sell-offset 5 `
+  --sell-fallback-offset 4
+```
+
+如果同时有基准程序导出的 `result.csv`，可以继续加上：
+
+```powershell
+python scripts/evaluate_submission_return.py `
+  --data-path data/raw/stock_data.csv `
+  --submission-path outputs/submissions/result_a_stage_round1.csv `
+  --baseline-submission-path path/to/baseline_result.csv `
+  --trade-date 2026-04-17 `
+  --buy-offset 1 `
+  --sell-offset 5 `
+  --sell-fallback-offset 4
+```
+
+这样会直接输出：
+
+- 候选组合收益率
+- 基准组合收益率
+- 两者收益差
 
 ## 八、下一步数据增强计划
 

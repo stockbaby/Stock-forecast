@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.neural_network import MLPRegressor
 
 
 @dataclass
@@ -40,6 +41,22 @@ def fit_baseline_model(
             return FittedModel(name="lightgbm", model=model, feature_columns=feature_columns)
         except ImportError:
             pass
+
+    if model_type == "mlp":
+        model = MLPRegressor(
+            hidden_layer_sizes=(256, 128),
+            activation="relu",
+            solver="adam",
+            alpha=1e-4,
+            batch_size=1024,
+            learning_rate_init=1e-3,
+            max_iter=50,
+            early_stopping=True,
+            validation_fraction=0.1,
+            random_state=42,
+        )
+        model.fit(x_train, y_train)
+        return FittedModel(name="mlp", model=model, feature_columns=feature_columns)
 
     fallback = HistGradientBoostingRegressor(
         learning_rate=0.05,

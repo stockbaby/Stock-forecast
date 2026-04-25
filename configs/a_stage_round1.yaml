@@ -3,6 +3,7 @@ seed: 42
 data:
   raw_dir: data/raw
   processed_path: data/processed/model_dataset_a_stage_round1.csv
+  market_index_path: data/raw/hs300_index.csv
   benchmark_end_date: 2026-04-24
   date_col: date
   stock_col: stock_id
@@ -31,10 +32,21 @@ training:
   valid_start: null
   valid_end: null
   test_start: null
+  valid_days: 120
   model_type: lightgbm
   fallback_model_type: hist_gbdt
   top_k: 5
   max_weight_sum: 1.0
+
+portfolio:
+  strategies:
+    - proportional_positive
+    - equal_weight
+    - softmax
+    - positive_only
+    - positive_softmax
+    - top3_equal
+  temperature: 1.0
 
 output:
   metrics_path: outputs/predictions/a_stage_round1_metrics.json

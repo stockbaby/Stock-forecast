@@ -2,20 +2,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from app.code.src.path_utils import add_project_root_to_path
+
+PROJECT_ROOT = add_project_root_to_path()
 
 from src.training.train_baseline import TrainConfig, run_training
 from src.utils.config import load_yaml_config
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train the baseline model and export predictions/submission.")
-    parser.add_argument("--config", default="configs/baseline.yaml")
+    parser = argparse.ArgumentParser(description="Official app/ training entrypoint.")
+    parser.add_argument(
+        "--config",
+        default=str(PROJECT_ROOT / "configs" / "a_stage_round1.yaml"),
+    )
     args = parser.parse_args()
 
     cfg = load_yaml_config(args.config)
@@ -32,8 +34,6 @@ def main() -> None:
         valid_start=cfg["training"].get("valid_start"),
         valid_end=cfg["training"].get("valid_end"),
         valid_days=cfg["training"].get("valid_days"),
-        portfolio_strategies=cfg.get("portfolio", {}).get("strategies"),
-        portfolio_temperature=cfg.get("portfolio", {}).get("temperature", 1.0),
     )
     metrics = run_training(train_cfg)
     print(json.dumps(metrics, ensure_ascii=False, indent=2))

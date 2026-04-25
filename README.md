@@ -483,3 +483,27 @@ python scripts/fetch_benchmark_data.py --data-dir data/raw --output-name stock_d
 python scripts/build_dataset.py --config configs/a_stage_round1.yaml
 python scripts/train_baseline.py --config configs/a_stage_round1.yaml
 ```
+
+## 17. Official Packaging Alignment
+
+为对齐官方《代码规范2026》中的复现与打包要求，仓库已新增：
+
+- [code_spec_alignment.md](D:\data_competition\docs\code_spec_alignment.md)
+- [app/](D:\data_competition\app)
+
+其中 `app/` 目录用于后续 Docker 打包与离线复现审核，保留了官方要求的关键结构：
+
+- `app/code/src`
+- `app/code/featurework.py`
+- `app/code/train.py`
+- `app/code/test.py`
+- `app/data`
+- `app/model`
+- `app/output`
+- `app/temp`
+- `app/init.sh`
+- `app/train.sh`
+- `app/test.sh`
+- `app/readme.md`
+
+当前研发工作仍建议在仓库根目录下继续推进，最终提交时再通过 `app/` 入口完成对齐。

@@ -1,0 +1,45 @@
+seed: 42
+
+data:
+  raw_dir: data/raw
+  processed_path: data/processed/model_dataset_stockmixer_alpha.csv
+  market_index_path: data/raw/hs300_index.csv
+  benchmark_end_date: 2026-04-24
+
+features:
+  lookback_windows: [3, 5, 10, 20]
+
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+
+training:
+  valid_days: 120
+  top_k: 5
+  max_weight_sum: 1.0
+
+portfolio:
+  strategies:
+    - proportional_positive
+    - equal_weight
+    - softmax
+    - positive_only
+    - positive_softmax
+  temperature: 1.0
+
+deep:
+  lookback: 20
+  hidden_dim: 128
+  mixer_dim: 256
+  temporal_dim: 64
+  dropout: 0.1
+  batch_size: 512
+  epochs: 10
+  learning_rate: 0.001
+
+output:
+  metrics_path: outputs/predictions/stockmixer_alpha_metrics.json
+  prediction_path: outputs/predictions/stockmixer_alpha_predictions.csv
+  submission_path: outputs/submissions/result_stockmixer_alpha.csv
