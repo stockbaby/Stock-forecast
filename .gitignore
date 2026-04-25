@@ -1,0 +1,11 @@
+docs/
+data/
+*.log
+*.csv
+*.json
+*.xlsx
+*.h5
+*.pkl
+*.ipynb
+__pycache__/
+*.pyc
