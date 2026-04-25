@@ -122,6 +122,30 @@ def _corr_loss(pred, target, torch_module) -> object:
     return 1.0 - corr
 
 
+def _build_recency_weights(meta: pd.DataFrame, halflife_days: float) -> np.ndarray:
+    dates = pd.to_datetime(meta["date"])
+    day_distance = (dates.max() - dates).dt.days.astype(float)
+    halflife = max(float(halflife_days), 1.0)
+    weights = np.power(0.5, day_distance / halflife)
+    weights = np.asarray(weights, dtype=np.float32)
+    weights = weights / max(float(weights.mean()), 1e-6)
+    return weights.astype(np.float32)
+
+
+def _recent_validation_score(eval_df: pd.DataFrame) -> float:
+    val_rank_ic = rank_ic(eval_df, "label", "score")
+    portfolio_eval = evaluate_portfolio_strategy(
+        eval_df,
+        label_col="label",
+        score_col="score",
+        strategy="proportional_positive_thr0.0",
+        top_k=5,
+        max_weight_sum=1.0,
+        temperature=0.8,
+    )
+    return float(portfolio_eval["mean_return"]) + 0.1 * float(val_rank_ic)
+
+
 def _predict_in_batches(model, x_array: np.ndarray, batch_size: int, device, torch_module) -> np.ndarray:
     preds: list[np.ndarray] = []
     model.eval()
@@ -289,7 +313,7 @@ def train_stockmixer_regressor(
             optimizer.zero_grad()
             preds = model(x_batch)
 
-            reg_loss = reg_criterion(preds, y_batch)
+            reg_loss = torch.nn.functional.smooth_l1_loss(preds, y_batch)
             rank_loss = _pairwise_rank_loss(preds, y_batch, torch)
             corr_loss = _corr_loss(preds, y_batch, torch)
             loss = (
@@ -305,17 +329,7 @@ def train_stockmixer_regressor(
         eval_df = dataset.valid_meta.copy()
         eval_df["score"] = preds
         eval_df["label"] = y_valid
-        val_rank_ic = rank_ic(eval_df, "label", "score")
-        portfolio_eval = evaluate_portfolio_strategy(
-            eval_df,
-            label_col="label",
-            score_col="score",
-            strategy="proportional_positive_thr0.0",
-            top_k=5,
-            max_weight_sum=1.0,
-            temperature=0.8,
-        )
-        val_score = float(portfolio_eval["mean_return"]) + 0.1 * float(val_rank_ic)
+        val_score = _recent_validation_score(eval_df)
         scheduler.step(val_score)
 
         if val_score > best_score:

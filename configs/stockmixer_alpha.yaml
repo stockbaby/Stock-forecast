@@ -53,6 +53,13 @@ deep:
   corr_weight: 0.10
   label_clip: 0.18
   patch_sizes: [5, 10, 20, 30]
+  train_recency_halflife_days: 25
+  validation_recent_windows: [15, 30, 45, 60, 90]
+  validation_decay: 0.72
+  validation_return_weight: 2.2
+  validation_topk_weight: 0.35
+  validation_rankic_weight: 0.12
+  validation_precision_weight: 0.10
   seeds: [42, 52]
 
 output:

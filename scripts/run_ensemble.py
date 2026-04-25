@@ -66,19 +66,30 @@ def _weight_candidates(model_names: list[str], step: float = 0.1) -> list[dict[s
     return combos
 
 
-def _score_from_window_metrics(window_metrics: list[dict]) -> float:
+def _score_from_window_metrics(
+    window_metrics: list[dict],
+    decay: float,
+    return_weight: float,
+    topk_weight: float,
+    rankic_weight: float,
+    precision_weight: float,
+    recent_window_bonus: float,
+) -> float:
     if not window_metrics:
         return float("-inf")
     score = 0.0
     total_weight = 0.0
-    for item in window_metrics:
-        weight = float(item["window_days"])
-        total_weight += weight
-        score += weight * (
-            1.8 * float(item["strategy_mean_return"])
-            + 0.3 * float(item["top_k_portfolio_return"])
-            + 0.1 * float(item["rank_ic"])
-            + 0.1 * float(item["precision_at_k"])
+    num_windows = len(window_metrics)
+    for idx, item in enumerate(window_metrics):
+        decay_weight = float(decay) ** idx
+        recency_weight = 1.0 + float(recent_window_bonus) * ((num_windows - idx) / max(num_windows, 1))
+        window_importance = decay_weight * recency_weight
+        total_weight += window_importance
+        score += window_importance * (
+            float(return_weight) * float(item["strategy_mean_return"])
+            + float(topk_weight) * float(item["top_k_portfolio_return"])
+            + float(rankic_weight) * float(item["rank_ic"])
+            + float(precision_weight) * float(item["precision_at_k"])
         )
     return score / max(total_weight, 1e-6)
 
@@ -99,6 +110,12 @@ def main() -> None:
         ["proportional_positive_thr0.0", "equal_weight", "softmax_t0.6"],
     )
     recent_windows = cfg.get("validation", {}).get("recent_windows", [20, 40, 60, 90])
+    recent_decay = float(cfg.get("validation", {}).get("recent_decay", 0.75))
+    recent_return_weight = float(cfg.get("validation", {}).get("return_weight", 2.0))
+    recent_topk_weight = float(cfg.get("validation", {}).get("topk_weight", 0.35))
+    recent_rankic_weight = float(cfg.get("validation", {}).get("rankic_weight", 0.15))
+    recent_precision_weight = float(cfg.get("validation", {}).get("precision_weight", 0.1))
+    recent_window_bonus = float(cfg.get("validation", {}).get("recent_window_bonus", 0.5))
     num_candidate_submissions = int(cfg.get("output", {}).get("num_candidate_submissions", 3))
 
     frames = [_load_prediction_frame(item, label_name) for item in cfg["models"]]
@@ -146,7 +163,15 @@ def main() -> None:
             temperature=temperature,
             windows=recent_windows,
         )
-        score = _score_from_window_metrics(recent_metrics)
+        score = _score_from_window_metrics(
+            recent_metrics,
+            decay=recent_decay,
+            return_weight=recent_return_weight,
+            topk_weight=recent_topk_weight,
+            rankic_weight=recent_rankic_weight,
+            precision_weight=recent_precision_weight,
+            recent_window_bonus=recent_window_bonus,
+        )
         candidate = {
             "weights": weight_spec,
             "strategy": best_strategy,
@@ -209,7 +234,15 @@ def main() -> None:
             {
                 "weights": weight_spec,
                 "strategy": best_strategy,
-                "selection_score": _score_from_window_metrics(recent_metrics),
+                "selection_score": _score_from_window_metrics(
+                    recent_metrics,
+                    decay=recent_decay,
+                    return_weight=recent_return_weight,
+                    topk_weight=recent_topk_weight,
+                    rankic_weight=recent_rankic_weight,
+                    precision_weight=recent_precision_weight,
+                    recent_window_bonus=recent_window_bonus,
+                ),
                 "pred_df": working,
             }
         )
@@ -238,8 +271,25 @@ def main() -> None:
         "precision_at_k": precision_at_k(valid_pred_df, label_name, "score", top_k),
         "top_k_portfolio_return": top_k_portfolio_return(valid_pred_df, label_name, "score", top_k),
         "recent_window_metrics": best["recent_window_metrics"],
+        "validation_scoring": {
+            "recent_decay": recent_decay,
+            "return_weight": recent_return_weight,
+            "topk_weight": recent_topk_weight,
+            "rankic_weight": recent_rankic_weight,
+            "precision_weight": recent_precision_weight,
+            "recent_window_bonus": recent_window_bonus,
+        },
         "candidate_submissions": [
             f"candidate_{idx}.csv" for idx in range(1, min(num_candidate_submissions, len(all_candidates)) + 1)
+        ],
+        "candidate_leaderboard": [
+            {
+                "file": f"candidate_{idx}.csv",
+                "weights": item["weights"],
+                "strategy": item["strategy"],
+                "selection_score": item["selection_score"],
+            }
+            for idx, item in enumerate(all_candidates[:num_candidate_submissions], start=1)
         ],
     }
 

@@ -21,7 +21,13 @@ ensemble:
   grid_step: 0.1
 
 validation:
-  recent_windows: [20, 40, 60, 90]
+  recent_windows: [15, 30, 45, 60, 90]
+  recent_decay: 0.72
+  return_weight: 2.2
+  topk_weight: 0.35
+  rankic_weight: 0.12
+  precision_weight: 0.10
+  recent_window_bonus: 0.6
 
 portfolio:
   strategies:
