@@ -1,0 +1,42 @@
+seed: 42
+
+data:
+  raw_dir: data/raw
+  processed_path: data/processed/model_dataset.csv
+  benchmark_end_date: 2026-04-24
+  date_col: date
+  stock_col: stock_id
+  required_columns:
+    - date
+    - stock_id
+    - open
+    - high
+    - low
+    - close
+    - volume
+
+features:
+  lookback_windows: [3, 5, 10, 20]
+  winsorize_quantile: 0.01
+  cross_sectional_rank: true
+
+label:
+  name: y_ret_5d_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: null
+
+training:
+  train_end: null
+  valid_start: null
+  valid_end: null
+  test_start: null
+  model_type: lightgbm
+  fallback_model_type: hist_gbdt
+  top_k: 5
+  max_weight_sum: 1.0
+
+output:
+  metrics_path: outputs/predictions/baseline_metrics.json
+  prediction_path: outputs/predictions/baseline_predictions.csv
+  submission_path: outputs/submissions/result.csv

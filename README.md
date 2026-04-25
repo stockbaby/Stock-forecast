@@ -440,3 +440,46 @@ Stock-forecast/
 2. 写 `docs/model_survey.md`：模型与论文调研结论
 3. 再开始初始化项目代码结构与数据流水线
 
+## 15. 环境与数据启动
+
+当前仓库已经补充了环境文件与数据流水线脚手架：
+
+- 环境文件：[environment.yml](D:\data_competition\environment.yml)
+- 环境说明：[environment.md](D:\data_competition\docs\environment.md)
+- 数据流水线说明：[data_pipeline.md](D:\data_competition\docs\data_pipeline.md)
+
+建议启动顺序：
+
+1. 创建并激活 `stock-forecast` conda 环境
+2. 将比赛原始 CSV 放入 `data/raw/`
+3. 执行：
+
+```powershell
+python scripts/build_dataset.py --config configs/baseline.yaml
+python scripts/train_baseline.py --config configs/baseline.yaml
+```
+
+4. 检查生成物：
+   - `data/processed/model_dataset.csv`
+   - `outputs/predictions/baseline_metrics.json`
+   - `outputs/submissions/result.csv`
+
+## 16. A Stage Round 1 Note
+
+根据官方通知与 Q&A：
+
+- 官方正式评测时会提供“过去十年到比赛提交最后一天”的历史数据
+- 因此我们建议将抓数截止日期至少扩展到 `2026-04-24`
+- 对于 `2026-04-25` 到 `2026-04-26` 的第一次提交，`T+5` 直接复用 `T+4` 数据
+
+仓库中已提供专用配置：
+
+- [a_stage_round1.yaml](D:\data_competition\configs\a_stage_round1.yaml)
+
+推荐流程：
+
+```powershell
+python scripts/fetch_benchmark_data.py --data-dir data/raw --output-name stock_data.csv --start-date 2015-01-01 --end-date 2026-04-24
+python scripts/build_dataset.py --config configs/a_stage_round1.yaml
+python scripts/train_baseline.py --config configs/a_stage_round1.yaml
+```
