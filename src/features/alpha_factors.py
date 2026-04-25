@@ -97,10 +97,53 @@ def add_basic_price_features(df: pd.DataFrame, windows: list[int]) -> pd.DataFra
 
 def add_cross_sectional_features(df: pd.DataFrame, feature_cols: list[str]) -> pd.DataFrame:
     out = df.copy()
+    feature_map: dict[str, pd.Series] = {}
     for col in feature_cols:
         grouped = out.groupby("date")[col]
         mean = grouped.transform("mean")
         std = grouped.transform("std").replace(0, np.nan)
-        out[f"{col}_cs_z"] = (out[col] - mean) / std
-        out[f"{col}_cs_rank"] = grouped.rank(pct=True)
+        feature_map[f"{col}_cs_z"] = (out[col] - mean) / std
+        feature_map[f"{col}_cs_rank"] = grouped.rank(pct=True)
+
+    if feature_map:
+        out = pd.concat([out, pd.DataFrame(feature_map, index=out.index)], axis=1)
     return out
+
+
+def build_feature_groups(feature_cols: list[str]) -> dict[str, list[str]]:
+    groups: dict[str, list[str]] = {
+        "price": [],
+        "volume": [],
+        "volatility": [],
+        "market": [],
+        "cross_sectional": [],
+        "style": [],
+        "other": [],
+    }
+
+    volume_tokens = ("volume", "amount", "turnover")
+    volatility_tokens = ("volatility", "amplitude", "shadow", "body", "ret_std", "ret_skew", "ret_to_vol", "rsi")
+    market_tokens = ("index_", "market_", "beta_", "regime_", "excess_", "idio_", "alpha_")
+    style_tokens = ("style_", "bucket", "group_")
+    cross_tokens = ("_cs_z", "_cs_rank")
+
+    for col in feature_cols:
+        if any(token in col for token in cross_tokens):
+            groups["cross_sectional"].append(col)
+        elif any(token in col for token in market_tokens):
+            groups["market"].append(col)
+        elif any(token in col for token in style_tokens):
+            groups["style"].append(col)
+        elif any(token in col for token in volume_tokens):
+            groups["volume"].append(col)
+        elif any(token in col for token in volatility_tokens):
+            groups["volatility"].append(col)
+        elif any(
+            token in col
+            for token in ("open", "close", "high", "low", "ret_", "ma_ratio", "ema_", "macd", "price_position")
+        ):
+            groups["price"].append(col)
+        else:
+            groups["other"].append(col)
+
+    return {name: cols for name, cols in groups.items() if cols}

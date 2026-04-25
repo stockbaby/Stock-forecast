@@ -63,8 +63,36 @@ def main() -> None:
         batch_size=cfg["deep"]["batch_size"],
         epochs=cfg["deep"]["epochs"],
         learning_rate=cfg["deep"]["learning_rate"],
+        weight_decay=cfg["deep"].get("weight_decay", 1e-4),
+        early_stopping_patience=cfg["deep"].get("early_stopping_patience", 4),
+        lr_decay_factor=cfg["deep"].get("lr_decay_factor", 0.5),
+        min_lr=cfg["deep"].get("min_lr", 1e-5),
+        recent_weight_power=cfg["deep"].get("recent_weight_power", 1.8),
+        regression_weight=cfg["deep"].get("regression_weight", 0.7),
+        rank_weight=cfg["deep"].get("rank_weight", 0.2),
+        corr_weight=cfg["deep"].get("corr_weight", 0.1),
+        label_clip=cfg["deep"].get("label_clip", 0.2),
+        patch_sizes=tuple(cfg["deep"].get("patch_sizes", [5, 10, 20, 30])),
     )
-    _, valid_pred_df = train_stockmixer_regressor(dataset, mixer_cfg)
+
+    seed_predictions: list[pd.DataFrame] = []
+    for seed in cfg["deep"].get("seeds", [cfg.get("seed", 42)]):
+        mixer_cfg.seed = int(seed)
+        _, seed_pred_df = train_stockmixer_regressor(dataset, mixer_cfg)
+        seed_pred_df = seed_pred_df.rename(columns={"score": f"score_seed_{seed}"})
+        seed_predictions.append(seed_pred_df)
+
+    valid_pred_df = seed_predictions[0][["stock_id", "date", "label"]].copy()
+    score_cols = []
+    for seed_pred_df in seed_predictions:
+        seed_score_col = [col for col in seed_pred_df.columns if col.startswith("score_seed_")][0]
+        valid_pred_df = valid_pred_df.merge(
+            seed_pred_df[["stock_id", "date", seed_score_col]],
+            on=["stock_id", "date"],
+            how="left",
+        )
+        score_cols.append(seed_score_col)
+    valid_pred_df["score"] = valid_pred_df[score_cols].mean(axis=1)
 
     eval_df = valid_pred_df.rename(columns={"label": cfg["label"]["name"]})
     metrics = {
@@ -72,6 +100,7 @@ def main() -> None:
         "n_train_sequences": int(len(dataset.x_train)),
         "n_valid_sequences": int(len(dataset.x_valid)),
         "n_features": int(len(feature_columns)),
+        "seeds": cfg["deep"].get("seeds", [cfg.get("seed", 42)]),
         "rank_ic": rank_ic(eval_df, cfg["label"]["name"], "score"),
         "precision_at_k": precision_at_k(eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]),
         "top_k_portfolio_return": top_k_portfolio_return(

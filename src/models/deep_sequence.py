@@ -11,6 +11,7 @@ import pandas as pd
 class SequenceDatasetBundle:
     x_train: np.ndarray
     y_train: np.ndarray
+    train_meta: pd.DataFrame
     x_valid: np.ndarray
     y_valid: np.ndarray
     valid_meta: pd.DataFrame
@@ -24,11 +25,12 @@ def build_lstm_sequences(
     label_column: str,
     lookback: int = 20,
 ) -> SequenceDatasetBundle:
-    x_train, y_train, _ = _build_sequences_for_frame(train_df, feature_columns, label_column, lookback)
+    x_train, y_train, train_meta = _build_sequences_for_frame(train_df, feature_columns, label_column, lookback)
     x_valid, y_valid, valid_meta = _build_sequences_for_frame(valid_df, feature_columns, label_column, lookback)
     return SequenceDatasetBundle(
         x_train=x_train,
         y_train=y_train,
+        train_meta=train_meta,
         x_valid=x_valid,
         y_valid=y_valid,
         valid_meta=valid_meta,

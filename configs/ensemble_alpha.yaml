@@ -1,0 +1,42 @@
+label:
+  name: y_ret_a_stage_round1_open_open
+
+models:
+  - name: lightgbm
+    path: outputs/predictions/a_stage_round1_predictions.csv
+    label_col: y_ret_a_stage_round1_open_open
+  - name: lstm
+    path: outputs/predictions/lstm_alpha_predictions.csv
+    label_col: label
+  - name: stockmixer
+    path: outputs/predictions/stockmixer_alpha_predictions.csv
+    label_col: label
+
+training:
+  top_k: 5
+  max_weight_sum: 1.0
+
+ensemble:
+  normalize_method: rank
+  grid_step: 0.1
+
+validation:
+  recent_windows: [20, 40, 60, 90]
+
+portfolio:
+  strategies:
+    - proportional_positive_thr0.0
+    - proportional_positive_thr0.002
+    - equal_weight
+    - softmax_t0.6
+    - softmax_t0.8
+    - positive_only_thr0.0
+    - positive_softmax_t0.6_thr0.0
+  temperature: 0.8
+
+output:
+  metrics_path: outputs/predictions/ensemble_alpha_metrics.json
+  prediction_path: outputs/predictions/ensemble_alpha_predictions.csv
+  submission_path: outputs/submissions/result_ensemble_alpha.csv
+  candidate_dir: outputs/submissions/ensemble_candidates
+  num_candidate_submissions: 3

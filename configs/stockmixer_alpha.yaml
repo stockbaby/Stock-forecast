@@ -7,7 +7,7 @@ data:
   benchmark_end_date: 2026-04-24
 
 features:
-  lookback_windows: [3, 5, 10, 20]
+  lookback_windows: [3, 5, 10, 20, 30]
 
 label:
   name: y_ret_a_stage_round1_open_open
@@ -22,22 +22,38 @@ training:
 
 portfolio:
   strategies:
-    - proportional_positive
+    - proportional_positive_thr0.0
+    - proportional_positive_thr0.002
     - equal_weight
-    - softmax
-    - positive_only
-    - positive_softmax
-  temperature: 1.0
+    - equal_weight_thr0.002
+    - softmax_t0.6
+    - softmax_t0.9
+    - positive_only_thr0.0
+    - positive_only_thr0.002
+    - positive_softmax_t0.6_thr0.0
+    - positive_softmax_t0.8_thr0.002
+  temperature: 0.8
 
 deep:
-  lookback: 20
-  hidden_dim: 128
-  mixer_dim: 256
-  temporal_dim: 64
-  dropout: 0.1
-  batch_size: 512
-  epochs: 10
-  learning_rate: 0.001
+  lookback: 30
+  hidden_dim: 160
+  mixer_dim: 320
+  temporal_dim: 96
+  dropout: 0.15
+  batch_size: 384
+  epochs: 16
+  learning_rate: 0.0008
+  weight_decay: 0.0001
+  early_stopping_patience: 4
+  lr_decay_factor: 0.5
+  min_lr: 0.00001
+  recent_weight_power: 1.8
+  regression_weight: 0.65
+  rank_weight: 0.25
+  corr_weight: 0.10
+  label_clip: 0.18
+  patch_sizes: [5, 10, 20, 30]
+  seeds: [42, 52]
 
 output:
   metrics_path: outputs/predictions/stockmixer_alpha_metrics.json

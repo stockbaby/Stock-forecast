@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 
 import numpy as np
 import pandas as pd
@@ -28,12 +29,34 @@ def _candidate_frame(
     score_col: str,
     stock_col: str,
     top_k: int,
+    min_score: float | None = None,
 ) -> pd.DataFrame:
-    top = latest_df.sort_values(score_col, ascending=False).head(top_k).copy()
+    ranked = latest_df.sort_values(score_col, ascending=False)
+    if min_score is not None:
+        ranked = ranked[ranked[score_col] >= min_score]
+    top = ranked.head(top_k).copy()
     if top.empty:
         return pd.DataFrame(columns=[stock_col, score_col])
     top[stock_col] = top[stock_col].map(_normalize_stock_id)
     return top
+
+
+def _parse_strategy_spec(strategy: str, default_temperature: float) -> tuple[str, float, float | None]:
+    base_strategy = strategy
+    temperature = default_temperature
+    min_score: float | None = None
+
+    temp_match = re.search(r"_t(-?\d+(?:\.\d+)?)", strategy)
+    if temp_match:
+        temperature = float(temp_match.group(1))
+        base_strategy = base_strategy.replace(temp_match.group(0), "")
+
+    thr_match = re.search(r"_thr(-?\d+(?:\.\d+)?)", base_strategy)
+    if thr_match:
+        min_score = float(thr_match.group(1))
+        base_strategy = base_strategy.replace(thr_match.group(0), "")
+
+    return base_strategy, temperature, min_score
 
 
 def _weights_from_strategy(
@@ -89,16 +112,23 @@ def build_top_k_submission(
     strategy: str = "proportional_positive",
     temperature: float = 1.0,
 ) -> pd.DataFrame:
-    candidates = _candidate_frame(latest_df, score_col=score_col, stock_col=stock_col, top_k=top_k)
+    base_strategy, effective_temperature, min_score = _parse_strategy_spec(strategy, temperature)
+    candidates = _candidate_frame(
+        latest_df,
+        score_col=score_col,
+        stock_col=stock_col,
+        top_k=top_k,
+        min_score=min_score,
+    )
     if candidates.empty:
         return pd.DataFrame(columns=["stock_id", "weight"])
 
     weights = _weights_from_strategy(
         candidates,
         score_col=score_col,
-        strategy=strategy,
+        strategy=base_strategy,
         max_weight_sum=max_weight_sum,
-        temperature=temperature,
+        temperature=effective_temperature,
     )
     submission = pd.DataFrame(
         {
