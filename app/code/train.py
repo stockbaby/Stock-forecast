@@ -2,40 +2,74 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
-from app.code.src.path_utils import add_project_root_to_path
+APP_CODE_DIR = Path(__file__).resolve().parent
+APP_HELPER_DIR = APP_CODE_DIR / "src"
+if str(APP_HELPER_DIR) not in sys.path:
+    sys.path.insert(0, str(APP_HELPER_DIR))
+
+from path_utils import add_project_root_to_path
 
 PROJECT_ROOT = add_project_root_to_path()
-
-from src.training.train_baseline import TrainConfig, run_training
+APP_ROOT = APP_CODE_DIR.parent
 from src.utils.config import load_yaml_config
+
+
+def stage_mounted_data() -> None:
+    data_root = PROJECT_ROOT / "data"
+    raw_dir = data_root / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    for name in ["stock_data.csv", "train.csv", "test.csv", "hs300_stock_list.csv", "hs300_index.csv"]:
+        source = data_root / name
+        target = raw_dir / name
+        if source.exists() and not target.exists():
+            shutil.copyfile(source, target)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Official app/ training entrypoint.")
     parser.add_argument(
         "--config",
-        default=str(PROJECT_ROOT / "configs" / "a_stage_round1.yaml"),
+        default=str(PROJECT_ROOT / "configs" / "master_alpha_official_rank.yaml"),
+        help="Training config. Default reproduces the selected MASTER official-rank run.",
+    )
+    parser.add_argument(
+        "--model-result",
+        default=str(APP_ROOT / "model" / "result.csv"),
+        help="Path used by test.py for fast offline prediction.",
+    )
+    parser.add_argument(
+        "--final-output",
+        default=str(APP_ROOT / "output" / "result.csv"),
+        help="Also write the latest trained submission here for local checks.",
     )
     args = parser.parse_args()
 
+    stage_mounted_data()
     cfg = load_yaml_config(args.config)
-    train_cfg = TrainConfig(
-        processed_path=cfg["data"]["processed_path"],
-        label_name=cfg["label"]["name"],
-        metrics_path=cfg["output"]["metrics_path"],
-        prediction_path=cfg["output"]["prediction_path"],
-        submission_path=cfg["output"]["submission_path"],
-        model_type=cfg["training"]["model_type"],
-        top_k=cfg["training"]["top_k"],
-        max_weight_sum=cfg["training"]["max_weight_sum"],
-        train_end=cfg["training"].get("train_end"),
-        valid_start=cfg["training"].get("valid_start"),
-        valid_end=cfg["training"].get("valid_end"),
-        valid_days=cfg["training"].get("valid_days"),
+    script_path = PROJECT_ROOT / "scripts" / "train_master_baseline.py"
+    subprocess.run(
+        [sys.executable, str(script_path), "--config", str(Path(args.config))],
+        cwd=str(PROJECT_ROOT),
+        check=True,
     )
-    metrics = run_training(train_cfg)
+
+    submission_path = PROJECT_ROOT / cfg["output"]["submission_path"]
+    model_result = Path(args.model_result)
+    final_output = Path(args.final_output)
+    model_result.parent.mkdir(parents=True, exist_ok=True)
+    final_output.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(submission_path, model_result)
+    shutil.copyfile(submission_path, final_output)
+
+    metrics_path = PROJECT_ROOT / cfg["output"]["metrics_path"]
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8")) if metrics_path.exists() else {}
+    metrics["model_result_path"] = str(model_result)
+    metrics["final_output_path"] = str(final_output)
     print(json.dumps(metrics, ensure_ascii=False, indent=2))
 
 

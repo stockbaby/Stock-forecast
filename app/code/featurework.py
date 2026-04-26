@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
-from app.code.src.path_utils import add_project_root_to_path
+APP_CODE_DIR = Path(__file__).resolve().parent
+APP_HELPER_DIR = APP_CODE_DIR / "src"
+if str(APP_HELPER_DIR) not in sys.path:
+    sys.path.insert(0, str(APP_HELPER_DIR))
+
+from path_utils import add_project_root_to_path
 
 PROJECT_ROOT = add_project_root_to_path()
 
@@ -24,6 +30,7 @@ def main() -> None:
         raw_dir=cfg["data"]["raw_dir"],
         processed_path=cfg["data"]["processed_path"],
         market_index_path=cfg["data"].get("market_index_path"),
+        industry_map_path=cfg["data"].get("industry_map_path"),
         windows=cfg["features"]["lookback_windows"],
         label_name=cfg["label"]["name"],
         buy_offset=cfg["label"]["horizon_buy_offset"],

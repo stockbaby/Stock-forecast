@@ -1,0 +1,11 @@
+.git
+__pycache__/
+*.pyc
+.pytest_cache/
+outputs/
+data/
+external/
+docs/
+*.tar
+*.zip
+*.7z
