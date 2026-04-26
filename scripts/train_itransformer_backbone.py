@@ -12,7 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.models.deep_sequence import build_lstm_sequences
-from src.models.stockmixer import StockMixerTrainConfig, train_stockmixer_regressor
+from src.models.itransformer import ITransformerTrainConfig, train_itransformer_regressor
 from src.portfolio.construct import build_top_k_submission, select_best_portfolio_strategy
 from src.training.dataset_builder import DatasetBuildConfig, build_model_dataset
 from src.training.metrics import precision_at_k, rank_ic, top_k_portfolio_return
@@ -21,8 +21,8 @@ from src.utils.config import load_yaml_config
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train a StockMixer-style baseline on alpha-style features.")
-    parser.add_argument("--config", default="configs/stockmixer_alpha.yaml")
+    parser = argparse.ArgumentParser(description="Train an iTransformer backbone on alpha-style features.")
+    parser.add_argument("--config", default="configs/itransformer_alpha.yaml")
     args = parser.parse_args()
 
     cfg = load_yaml_config(args.config)
@@ -57,57 +57,32 @@ def main() -> None:
         label_column=cfg["label"]["name"],
         lookback=cfg["deep"]["lookback"],
     )
-    mixer_cfg = StockMixerTrainConfig(
-        hidden_dim=cfg["deep"]["hidden_dim"],
-        mixer_dim=cfg["deep"]["mixer_dim"],
-        temporal_dim=cfg["deep"]["temporal_dim"],
+    train_cfg = ITransformerTrainConfig(
+        d_model=cfg["deep"]["d_model"],
+        nhead=cfg["deep"]["nhead"],
+        num_layers=cfg["deep"]["num_layers"],
+        dim_feedforward=cfg["deep"]["dim_feedforward"],
         dropout=cfg["deep"]["dropout"],
         batch_size=cfg["deep"]["batch_size"],
         epochs=cfg["deep"]["epochs"],
         learning_rate=cfg["deep"]["learning_rate"],
         weight_decay=cfg["deep"].get("weight_decay", 1e-4),
-        early_stopping_patience=cfg["deep"].get("early_stopping_patience", 4),
+        early_stopping_patience=cfg["deep"].get("early_stopping_patience", 3),
         lr_decay_factor=cfg["deep"].get("lr_decay_factor", 0.5),
         min_lr=cfg["deep"].get("min_lr", 1e-5),
-        recent_weight_power=cfg["deep"].get("recent_weight_power", 1.8),
-        regression_weight=cfg["deep"].get("regression_weight", 0.7),
-        rank_weight=cfg["deep"].get("rank_weight", 0.2),
-        corr_weight=cfg["deep"].get("corr_weight", 0.1),
-        official_rank_weight=cfg["deep"].get("official_rank_weight", 0.0),
-        official_top_k=cfg["deep"].get("official_top_k", 5),
-        official_top_k_weight=cfg["deep"].get("official_top_k_weight", 2.0),
-        official_base_weight=cfg["deep"].get("official_base_weight", 1.0),
-        official_temperature=cfg["deep"].get("official_temperature", 1.0),
-        label_clip=cfg["deep"].get("label_clip", 0.2),
-        patch_sizes=tuple(cfg["deep"].get("patch_sizes", [5, 10, 20, 30])),
+        label_clip=cfg["deep"].get("label_clip", 0.18),
+        eval_batch_size=cfg["deep"].get("eval_batch_size", 1024),
+        seed=cfg.get("seed", 42),
     )
 
-    seed_predictions: list[pd.DataFrame] = []
-    for seed in cfg["deep"].get("seeds", [cfg.get("seed", 42)]):
-        mixer_cfg.seed = int(seed)
-        _, seed_pred_df = train_stockmixer_regressor(dataset, mixer_cfg)
-        seed_pred_df = seed_pred_df.rename(columns={"score": f"score_seed_{seed}"})
-        seed_predictions.append(seed_pred_df)
-
-    valid_pred_df = seed_predictions[0][["stock_id", "date", "label"]].copy()
-    score_cols = []
-    for seed_pred_df in seed_predictions:
-        seed_score_col = [col for col in seed_pred_df.columns if col.startswith("score_seed_")][0]
-        valid_pred_df = valid_pred_df.merge(
-            seed_pred_df[["stock_id", "date", seed_score_col]],
-            on=["stock_id", "date"],
-            how="left",
-        )
-        score_cols.append(seed_score_col)
-    valid_pred_df["score"] = valid_pred_df[score_cols].mean(axis=1)
+    _, valid_pred_df = train_itransformer_regressor(dataset, train_cfg)
 
     eval_df = valid_pred_df.rename(columns={"label": cfg["label"]["name"]})
     metrics = {
-        "model_name": "stockmixer",
+        "model_name": "itransformer",
         "n_train_sequences": int(len(dataset.x_train)),
         "n_valid_sequences": int(len(dataset.x_valid)),
         "n_features": int(len(feature_columns)),
-        "seeds": cfg["deep"].get("seeds", [cfg.get("seed", 42)]),
         "rank_ic": rank_ic(eval_df, cfg["label"]["name"], "score"),
         "precision_at_k": precision_at_k(eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]),
         "top_k_portfolio_return": top_k_portfolio_return(

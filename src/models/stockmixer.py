@@ -30,6 +30,11 @@ class StockMixerTrainConfig:
     regression_weight: float = 0.7
     rank_weight: float = 0.2
     corr_weight: float = 0.1
+    official_rank_weight: float = 0.0
+    official_top_k: int = 5
+    official_top_k_weight: float = 2.0
+    official_base_weight: float = 1.0
+    official_temperature: float = 1.0
     label_clip: float = 0.2
     patch_sizes: tuple[int, ...] = (5, 10, 20, 30)
     seed: int = 42
@@ -109,6 +114,80 @@ def _pairwise_rank_loss(pred, target, torch_module) -> object:
     margin = torch_module.abs(target_diff).clamp(min=1e-3, max=0.1)
     loss = torch_module.nn.functional.softplus(-(pred_diff * sign)) * margin
     return loss[mask].mean()
+
+
+def _build_topk_sample_weights(
+    target,
+    top_k: int,
+    top_k_weight: float,
+    base_weight: float,
+    torch_module,
+):
+    weights = torch_module.full_like(target, float(base_weight))
+    if target.numel() == 0:
+        return weights
+    k = min(int(top_k), int(target.numel()))
+    if k <= 0:
+        return weights
+    _, top_indices = torch_module.topk(target, k)
+    weights[top_indices] = float(top_k_weight)
+    return weights
+
+
+def _weighted_listwise_loss(pred, target, weights, temperature: float, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+    temp = max(float(temperature), 1e-3)
+    pred_probs = torch_module.softmax(pred / temp, dim=0)
+    target_probs = torch_module.softmax(target / temp, dim=0)
+    weighted_ce = -(target_probs * torch_module.log(pred_probs + 1e-12) * weights)
+    return weighted_ce.sum() / weights.sum().clamp(min=1e-6)
+
+
+def _weighted_pairwise_rank_loss(pred, target, weights, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+
+    target_diff = target.unsqueeze(1) - target.unsqueeze(0)
+    sign = torch_module.sign(target_diff)
+    mask = sign != 0
+    if mask.sum() == 0:
+        return pred.new_tensor(0.0)
+
+    pred_diff = pred.unsqueeze(1) - pred.unsqueeze(0)
+    pair_weights = (weights.unsqueeze(1) + weights.unsqueeze(0)) * 0.5
+    margin = torch_module.abs(target_diff).clamp(min=1e-3, max=0.1)
+    loss = torch_module.nn.functional.softplus(-(pred_diff * sign)) * margin * pair_weights
+    return loss[mask].mean()
+
+
+def _official_weighted_rank_loss(
+    pred,
+    target,
+    config: StockMixerTrainConfig,
+    torch_module,
+):
+    weights = _build_topk_sample_weights(
+        target=target,
+        top_k=config.official_top_k,
+        top_k_weight=config.official_top_k_weight,
+        base_weight=config.official_base_weight,
+        torch_module=torch_module,
+    )
+    listwise = _weighted_listwise_loss(
+        pred=pred,
+        target=target,
+        weights=weights,
+        temperature=config.official_temperature,
+        torch_module=torch_module,
+    )
+    pairwise = _weighted_pairwise_rank_loss(
+        pred=pred,
+        target=target,
+        weights=weights,
+        torch_module=torch_module,
+    )
+    return listwise + pairwise
 
 
 def _corr_loss(pred, target, torch_module) -> object:
@@ -316,10 +395,12 @@ def train_stockmixer_regressor(
             reg_loss = torch.nn.functional.smooth_l1_loss(preds, y_batch)
             rank_loss = _pairwise_rank_loss(preds, y_batch, torch)
             corr_loss = _corr_loss(preds, y_batch, torch)
+            official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
                 + config.rank_weight * rank_loss
                 + config.corr_weight * corr_loss
+                + config.official_rank_weight * official_rank_loss
             )
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)

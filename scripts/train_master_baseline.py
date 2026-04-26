@@ -30,6 +30,7 @@ def main() -> None:
         raw_dir=cfg["data"]["raw_dir"],
         processed_path=cfg["data"]["processed_path"],
         market_index_path=cfg["data"].get("market_index_path"),
+        industry_map_path=cfg["data"].get("industry_map_path"),
         windows=cfg["features"]["lookback_windows"],
         label_name=cfg["label"]["name"],
         buy_offset=cfg["label"]["horizon_buy_offset"],
@@ -44,6 +45,7 @@ def main() -> None:
         for col in df.columns
         if col not in {"date", "stock_id", cfg["label"]["name"]}
         and not col.startswith("Unnamed:")
+        and pd.api.types.is_numeric_dtype(df[col])
     ]
     model_df = df.dropna(subset=[cfg["label"]["name"]]).copy()
     train_df, valid_df = _default_time_split(model_df, valid_days=cfg["training"].get("valid_days"))
@@ -72,6 +74,11 @@ def main() -> None:
         regression_weight=cfg["deep"].get("regression_weight", 0.7),
         rank_weight=cfg["deep"].get("rank_weight", 0.2),
         corr_weight=cfg["deep"].get("corr_weight", 0.1),
+        official_rank_weight=cfg["deep"].get("official_rank_weight", 0.0),
+        official_top_k=cfg["deep"].get("official_top_k", 5),
+        official_top_k_weight=cfg["deep"].get("official_top_k_weight", 2.0),
+        official_base_weight=cfg["deep"].get("official_base_weight", 1.0),
+        official_temperature=cfg["deep"].get("official_temperature", 1.0),
         label_clip=cfg["deep"].get("label_clip", 0.18),
         seed=cfg["seed"],
     )

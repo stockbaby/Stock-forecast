@@ -7,6 +7,7 @@ import pandas as pd
 
 from src.data.io import load_price_data, save_dataframe
 from src.features.alpha_factors import add_basic_price_features, add_cross_sectional_features
+from src.features.industry_context import add_industry_features, load_industry_map
 from src.features.labels import add_forward_return_label
 from src.features.market_context import add_market_index_features, load_market_index_frame
 
@@ -16,6 +17,7 @@ class DatasetBuildConfig:
     raw_dir: str
     processed_path: str
     market_index_path: str | None
+    industry_map_path: str | None
     windows: list[int]
     label_name: str
     buy_offset: int
@@ -29,6 +31,9 @@ def build_model_dataset(config: DatasetBuildConfig) -> pd.DataFrame:
     if config.market_index_path and Path(config.market_index_path).exists():
         index_df = load_market_index_frame(config.market_index_path)
         df = add_market_index_features(df, index_df, config.windows)
+    if config.industry_map_path and Path(config.industry_map_path).exists():
+        industry_df = load_industry_map(config.industry_map_path)
+        df = add_industry_features(df, industry_df, config.windows)
     df = add_forward_return_label(
         df,
         label_name=config.label_name,
@@ -117,9 +122,14 @@ def build_model_dataset(config: DatasetBuildConfig) -> pd.DataFrame:
         "style_z_idio_ret_20",
         "style_rank_idio_ret_20",
     ]
+    industry_feature_cols = [
+        col
+        for col in ["industry_id", *[name for name in df.columns if name.startswith("industry_")]]
+        if col in df.columns and pd.api.types.is_numeric_dtype(df[col])
+    ]
     feature_candidates = [col for col in base_feature_cols if col in df.columns] + [
         col for col in market_feature_cols if col in df.columns
-    ]
+    ] + [col for col in industry_feature_cols if col in df.columns]
     df = add_cross_sectional_features(df, feature_candidates)
     save_dataframe(df, config.processed_path)
     return df

@@ -29,6 +29,7 @@ def main() -> None:
         raw_dir=cfg["data"]["raw_dir"],
         processed_path=cfg["data"]["processed_path"],
         market_index_path=cfg["data"].get("market_index_path"),
+        industry_map_path=cfg["data"].get("industry_map_path"),
         windows=cfg["features"]["lookback_windows"],
         label_name=cfg["label"]["name"],
         buy_offset=cfg["label"]["horizon_buy_offset"],
@@ -43,6 +44,7 @@ def main() -> None:
         for col in df.columns
         if col not in {"date", "stock_id", cfg["label"]["name"]}
         and not col.startswith("Unnamed:")
+        and pd.api.types.is_numeric_dtype(df[col])
     ]
     model_df = df.dropna(subset=[cfg["label"]["name"]]).copy()
     train_df, valid_df = _default_time_split(model_df, valid_days=cfg["training"].get("valid_days"))

@@ -1,0 +1,54 @@
+seed: 42
+
+data:
+  raw_dir: data/raw
+  processed_path: data/processed/model_dataset_itransformer_alpha.csv
+  market_index_path: data/raw/hs300_index.csv
+  benchmark_end_date: 2026-04-24
+
+features:
+  lookback_windows: [3, 5, 10, 20, 30]
+
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+
+training:
+  valid_days: 120
+  top_k: 5
+  max_weight_sum: 1.0
+
+portfolio:
+  strategies:
+    - proportional_positive_thr0.0
+    - proportional_positive_thr0.002
+    - equal_weight
+    - softmax_t0.6
+    - softmax_t0.9
+    - positive_only_thr0.0
+    - positive_softmax_t0.8_thr0.002
+  temperature: 0.8
+
+deep:
+  lookback: 30
+  d_model: 128
+  nhead: 8
+  num_layers: 3
+  dim_feedforward: 320
+  dropout: 0.12
+  batch_size: 512
+  epochs: 12
+  learning_rate: 0.0008
+  weight_decay: 0.0001
+  early_stopping_patience: 3
+  lr_decay_factor: 0.5
+  min_lr: 0.00001
+  label_clip: 0.18
+  eval_batch_size: 256
+
+output:
+  metrics_path: outputs/predictions/itransformer_alpha_metrics.json
+  prediction_path: outputs/predictions/itransformer_alpha_predictions.csv
+  submission_path: outputs/submissions/result_itransformer_alpha.csv

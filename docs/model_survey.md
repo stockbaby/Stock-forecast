@@ -369,3 +369,20 @@
 - Top-5 倾斜的排序目标
 - 更系统地比较 `30/45/60` 日 lookback
 - 保留“固定等权备选提交稿”用于稳健性对照
+
+## 12. Backbone 落地结果
+
+文档里提到的通用 backbone 方向，本轮已经先落地并评测了 `iTransformer`。
+
+实验结果：
+- `RankIC = 0.0087`
+- `Precision@5 = 0.0242`
+- `Top-k portfolio return = 0.0053`
+- 最近窗口本地回看收益：`-0.01166`
+
+结论：
+- `iTransformer` 作为研究型 backbone 参考是有价值的。
+- 但在当前比赛设定下，它明显不如更 stock-specific 的 `StockMixer / MASTER`。
+- 因此后续如果还做 backbone 路线，更合理的是：
+  - 只把它保留为方法研究参考
+  - 主力继续围绕 `StockMixer / MASTER` 优化

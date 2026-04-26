@@ -190,3 +190,73 @@
 - 当前所有主力提交稿都已超过官方 baseline。
 - `StockMixer` 仍是当前最近窗口本地回看最强稿。
 - `MASTER` 仍是当前验证集综合最强稿。
+
+## 9. 官方 WeightedRankingLoss 迁移实验
+
+已经将官方 baseline 的 Top-5 倾斜排序思想迁移到当前 `StockMixer`，以可配置实验方式保留：
+
+- 实验配置：`configs/stockmixer_alpha_official_rank.yaml`
+- 输出提交稿：`outputs/submissions/result_stockmixer_alpha_official_rank.csv`
+
+实验结果：
+
+| Version | RankIC | Precision@5 | Top-k Return | Recent Local Return |
+|---|---:|---:|---:|---:|
+| 原强化版 StockMixer | 0.0591 | 0.0462 | 0.0103 | 0.06332 |
+| 加入官方 Top-5 加权损失 | 0.0657 | 0.0527 | 0.0142 | 0.03964 |
+
+结论：
+- 这次迁移**提升了验证集排序与组合指标**。
+- 但它**降低了最近单窗口本地回看收益**。
+- 因此当前保留为可选增强配置，不替换主提交稿。
+
+在 `MASTER` 上的同类实验结论更明显：
+
+| Version | RankIC | Precision@5 | Top-k Return | Recent Local Return |
+|---|---:|---:|---:|---:|
+| 原 MASTER | 0.0348 | 0.0725 | 0.0176 | 0.06097 |
+| 加入官方 Top-5 加权损失 | 0.0418 | 0.0593 | 0.0183 | -0.02259 |
+
+判断：
+- `MASTER` 的验证集排序指标也有提升。
+- 但最近窗口真实收益显著恶化。
+- 因此这次迁移在 `MASTER` 上也只保留为实验配置，不进入主提交优先级。
+
+## 10. Backbone 实验：iTransformer
+
+已完成文档中通用 backbone 路线的第一项落地：`iTransformer`。
+
+相关文件：
+- 配置：`configs/itransformer_alpha.yaml`
+- 训练脚本：`scripts/train_itransformer_backbone.py`
+- 模型实现：`src/models/itransformer.py`
+- 提交文件：`outputs/submissions/result_itransformer_alpha.csv`
+
+结果：
+
+| Model | RankIC | Precision@5 | Top-k Return | Recent Local Return |
+|---|---:|---:|---:|---:|
+| iTransformer | 0.0087 | 0.0242 | 0.0053 | -0.01166 |
+
+结论：
+- 作为通用 backbone，它能学到部分时序信号。
+- 但当前对比赛目标的适配明显不如 `StockMixer / MASTER`。
+- 最近窗口本地回看甚至低于官方 baseline。
+- 因此当前不建议继续把 `iTransformer` 作为主力提交线推进。
+
+## 11. 固定等权备选稿对比
+
+已经为当前强模型生成固定等权备选稿并完成同窗对比。
+
+| Submission | Local Return | 备注 |
+|---|---:|---|
+| StockMixer dynamic | 0.06332 | 当前最佳 |
+| StockMixer equal-weight | 0.06077 | 略弱，可保留为稳健备选 |
+| MASTER dynamic | 0.06097 | 当前强备选 |
+| MASTER equal-weight | 0.04982 | 弱于动态 |
+| MASTER official-rank dynamic | -0.02259 | 不保留 |
+| MASTER official-rank equal-weight | -0.02150 | 仍不保留 |
+
+结论：
+- 当前动态权重总体优于固定等权。
+- 但 `StockMixer` 的固定等权版本只比动态版略弱，可以作为保守候选稿保留。

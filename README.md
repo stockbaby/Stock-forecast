@@ -89,6 +89,7 @@
 | LSTM | 0.0136 | 0.0356 | 0.0060 | 未作为主稿保留 |
 | StockMixer | 0.0591 | 0.0462 | 0.0103 | 0.06332 |
 | MASTER | 0.0348 | 0.0725 | 0.0176 | 0.06097 |
+| iTransformer | 0.0087 | 0.0242 | 0.0053 | -0.01166 |
 | Ensemble | 0.0290 | 0.0791 | 0.0101 | 当前主稿不稳定 |
 
 当前判断：
@@ -302,6 +303,25 @@ python scripts/evaluate_submission_return.py --data-path data/raw/stock_data.csv
 - 当前最近窗口本地回看最强提交稿仍然是 `outputs/submissions/result_stockmixer_alpha.csv`。
 - 当前验证集综合最强模型仍然是 `MASTER`。
 
+## 14. Backbone 实验：iTransformer
+
+本轮已按文档中的通用 backbone 方向实现并评测 `iTransformer`：
+- 配置：`configs/itransformer_alpha.yaml`
+- 训练脚本：`scripts/train_itransformer_backbone.py`
+- 提交文件：`outputs/submissions/result_itransformer_alpha.csv`
+
+结果：
+- `RankIC = 0.0087`
+- `Precision@5 = 0.0242`
+- `Top-k portfolio return = 0.0053`
+- 最近窗口本地回看：`-0.01166`
+- 相对官方 baseline：`-0.03516`
+
+判断：
+- 它作为通用时序 backbone 能学到一定信号，但当前对这道题的适配度明显不如 `StockMixer / MASTER`。
+- 目前不建议把 `iTransformer` 继续作为主力提交方向。
+- 更适合把它保留为“后续研究型 backbone 参考”，而不是当前比赛主线。
+
 ## 13. 官方 Baseline 值得借鉴的点
 
 虽然当前结果已经超过官方 baseline，但官方方法里仍有几处很值得继续吸收：
@@ -325,3 +345,50 @@ python scripts/evaluate_submission_return.py --data-path data/raw/stock_data.csv
 当前我们准备吸收的方向：
 - 把官方这种 Top-5 倾斜思想继续迁移到 `StockMixer / MASTER` 的目标函数中。
 - 增加“固定等权备选 submission”，作为与当前动态权重稿并行的稳健候选。
+
+已完成的一次迁移实验：
+- 配置文件：`configs/stockmixer_alpha_official_rank.yaml`
+- 结果：验证集指标优于原始强化版 `StockMixer`
+  - `RankIC: 0.0591 -> 0.0657`
+  - `Precision@5: 0.0462 -> 0.0527`
+  - `Top-k return: 0.0103 -> 0.0142`
+- 但最近单窗口本地回看从 `0.06332` 降到 `0.03964`
+
+当前判断：
+- 这说明“官方 Top-5 加权损失”作为训练增强是有价值的。
+- 但在本轮提交窗口上，它还不适合直接替换当前主提交稿。
+- 因此目前保留为**可选实验分支**，不覆盖当前主稿 `result_stockmixer_alpha.csv`。
+
+在 `MASTER` 上也完成了同类迁移实验：
+- 配置文件：`configs/master_alpha_official_rank.yaml`
+- 验证集指标有小幅提升
+  - `RankIC: 0.0348 -> 0.0418`
+  - `Top-k return: 0.0176 -> 0.0183`
+- 但最近单窗口本地回看从 `0.06097` 直接降到 `-0.02259`
+
+因此当前结论更明确：
+- 官方 Top-5 加权损失思想对验证集排序有帮助
+- 但在当前提交窗口里，迁移到 `StockMixer / MASTER` 后都没有转化成更强的真实回看收益
+- 所以目前统一保留为**实验配置**，不升级为主稿
+
+## 15. 固定等权备选 Submission 对比
+
+已经为当前强模型都生成了固定等权备选稿：
+- `outputs/submissions/result_stockmixer_alpha_equal_weight.csv`
+- `outputs/submissions/result_master_alpha_equal_weight.csv`
+- `outputs/submissions/result_master_alpha_official_rank_equal_weight.csv`
+
+最近窗口本地回看结果：
+
+| Submission | Local Return | 结论 |
+|---|---:|---|
+| StockMixer dynamic | 0.06332 | 当前最佳 |
+| StockMixer equal-weight | 0.06077 | 略弱，可作稳健备选 |
+| MASTER dynamic | 0.06097 | 当前强备选 |
+| MASTER equal-weight | 0.04982 | 明显弱于动态 |
+| MASTER official-rank dynamic | -0.02259 | 不保留 |
+| MASTER official-rank equal-weight | -0.02150 | 略好于动态，但仍不保留 |
+
+当前判断：
+- 在我们当前最强几条线上，动态权重仍普遍优于固定等权。
+- 固定等权可以保留为“保守候选稿”，但不建议替换主提交稿。
