@@ -59,6 +59,19 @@
 - 当前最强单模型
 - 当前主提交稿优先级最高
 
+### MASTER
+
+- `RankIC = 0.0348`
+- `Precision@5 = 0.0725`
+- `Top-k portfolio return = 0.01762`
+- 最优策略：`proportional_positive_thr0.0`
+- 验证期均值：`0.01831`
+
+结论：
+- 当前验证集综合表现最强的模型
+- 已经具备作为正式主力模型的价值
+- 但在最近单窗口本地回看里，略低于强化版 `StockMixer`
+
 ## 3. 集成阶段结论
 
 已实现：
@@ -98,6 +111,10 @@
 
 - `outputs/submissions/result_stockmixer_alpha.csv`
 
+### 第一优先级并列备选
+
+- `outputs/submissions/result_master_alpha.csv`
+
 ### 第二优先级
 
 - `outputs/submissions/ensemble_candidates/candidate_1.csv`
@@ -110,13 +127,11 @@
 
 ## 6. 下一步可继续推进的方向
 
-### A. MASTER
+### A. 官方 baseline 原仓复现
 
-最值得开的新主线。
-
-原因：
-- 更贴合 A 股截面选股任务
-- 当前 StockMixer 已经够强，下一条新增益线更适合来自新模型结构，而不是继续对同一路线做边角优化
+现在最值得补的一步是：
+- 把赛题基准代码原样跑一次
+- 在相同数据窗口下做更严格的数值对照
 
 ### B. 更贴比赛的目标函数
 
@@ -153,4 +168,25 @@
 - 选择更高价值的新方向
 - 控制试错成本
 - 围绕比赛得分做更精细的优化
+## 8. 官方 Baseline 同仓结果
 
+官方 baseline 原仓复现已经完成，且已经按同一回看口径和我们当前结果做了严格对比。
+
+对比窗口：
+- 参考交易日 `T = 2026-04-17`
+- 买入日 `2026-04-20`
+- 卖出日 `2026-04-24`
+
+结果如下：
+
+| Method | Local Return | vs Official |
+|---|---:|---:|
+| Official baseline | 0.02350 | 0.00000 |
+| LightGBM | 0.03386 | +0.01036 |
+| MASTER | 0.06097 | +0.03747 |
+| StockMixer | 0.06332 | +0.03982 |
+
+这意味着：
+- 当前所有主力提交稿都已超过官方 baseline。
+- `StockMixer` 仍是当前最近窗口本地回看最强稿。
+- `MASTER` 仍是当前验证集综合最强稿。
