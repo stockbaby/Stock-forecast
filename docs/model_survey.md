@@ -1,5 +1,80 @@
 # Model Survey
 
+## 2026-04-27 实验更新
+
+最新实验结论以 `docs/experiment_report_2026_04_27.md` 为准。当前主推荐不是单纯新增更重模型，而是：
+
+```text
+MASTER official-rank prediction
++ date z-score
++ industry-rank relation adjustment
++ softmax_t0.6 portfolio weighting
+```
+
+当前最佳验证均值：
+
+```text
+0.02177
+```
+
+相对原提交 MASTER：
+
+```text
+0.01904 -> 0.02177
+```
+
+### HIST / 关系增强当前判断
+
+HIST 思路中的“股票关系”已先以轻量后处理方式验证：
+
+- 使用行业映射构建同行业关系。
+- 对 MASTER 分数做日截面 z-score。
+- 使用行业内 rank 作为 peer relation 信号。
+- 当前最佳为 `rank_ind_mix alpha=-0.5`。
+
+这条路线有效，优先级高于继续盲目扩大模型规模。下一步更值得做的是把关系从“行业”扩展到：
+
+- 行业 + 风格桶
+- beta 邻近关系
+- 流动性邻近关系
+- 历史收益相关性邻近关系
+
+### TimeXer 当前判断
+
+已实现轻量 TimeXer-style 模型：
+
+```text
+src/models/timexer.py
+scripts/train_timexer_backbone.py
+configs/timexer_alpha_fast.yaml
+configs/timexer_alpha_fast_v2.yaml
+```
+
+实验结果：
+
+| 模型 | RankIC | Precision@5 | 组合均值 | 结论 |
+|---|---:|---:|---:|---|
+| TimeXer fast | `0.01583` | `0.05634` | `0.00571` | 有弱信号，不进主方案 |
+| TimeXer fast v2 | `0.07611` | `0.00984` | `0.00451` | RankIC 高但 top-k 差 |
+
+因此 TimeXer 暂时不进入主提交候选。若继续推进，应改成更贴合比赛目标的 top-k/listwise 训练，而不是只提升 RankIC。
+
+### 多模型融合当前判断
+
+已搜索 MASTER / StockMixer / iTransformer / ensemble 的 z-score、rank、softmax、行业 cap 和融合权重。结果显示：
+
+- 单模型 MASTER 后处理最强。
+- 0.75 MASTER + 0.25 iTransformer 次优，但低于 MASTER 单模型。
+- 加入 TimeXer、近期 MASTER、fast StockMixer 未进一步提升。
+
+所以当前路线优先级更新为：
+
+1. MASTER + relation postprocess
+2. 多 seed MASTER + relation postprocess
+3. 更丰富关系图
+4. StockMixer 作为备选/对照
+5. TimeXer 仅作为研究路线保留
+
 ## 文档目标
 
 本文档聚焦“本项目实际值得投入复现和改造的模型路线”，不追求罗列所有股票预测论文，而是回答三个问题：

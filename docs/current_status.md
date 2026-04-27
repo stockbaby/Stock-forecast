@@ -1,262 +1,129 @@
 # Current Status
 
-## 1. 项目当前状态
+## 当前阶段
 
-仓库已经从“方案讨论”进入“可训练、可评估、可提交”的阶段。
+项目已经完成从数据、模型、评估到 Docker 提交目录的闭环。正式提交后继续做了行业特征、组合优化、关系增强、TimeXer 和多模型融合实验。
 
-已完成：
-- 比赛基准数据抓取与扩展更新
-- 数据清洗、字段标准化、训练数据集构建
-- Alpha 风格特征、市场上下文特征、截面特征
-- `LightGBM / MLP / LSTM / StockMixer` 训练
-- 组合构建与提交文件校验
-- 赛题公式收益回看
-- 官方代码规范对齐的 `app/` 目录结构
+当前最新推荐结果已同步到：
 
-## 2. 当前模型结果
+```text
+app/model/result.csv
+app/output/result.csv
+```
 
-### LightGBM baseline
+## 当前最佳方案
 
-- `RankIC = 0.0210`
-- `Precision@5 = 0.0767`
-- `Top-k portfolio return = -0.00157`
+当前最佳为：
 
-特点：
-- 排序能力稳定
-- 仍然是重要参照线
-- 单独作为最终主提交稿时，当前不如强化版 StockMixer
+```text
+MASTER official-rank prediction
++ date z-score
++ industry-rank relation adjustment
++ softmax_t0.6 weighting
+```
 
-### MLP baseline
+输出：
 
-- `RankIC ≈ -0.0011`
-- `Precision@5 ≈ 0.0183`
-- 表现明显弱于树模型与后续深度模型
+```csv
+stock_id,weight
+002422,0.5366080941073169
+688981,0.18532079156062642
+300433,0.14533404575723335
+002049,0.06974993365670436
+688008,0.06298713491811891
+```
 
-结论：
-- 作为对照实验保留
-- 不再作为主线继续投入
+## 结果对比
 
-### LSTM baseline
+| 候选 | 策略 | 验证均值 | 波动 | 判断 |
+|---|---|---:|---:|---|
+| 原提交 MASTER | `proportional_positive_thr0.0` | `0.01904` | `0.03941` | 已提交版本 |
+| MASTER z-score + softmax + industry cap 3 | `softmax_t0.6` | `0.02146` | `0.04904` | 明显提升 |
+| MASTER relation best | `softmax_t0.6` | `0.02177` | `0.05253` | 当前最佳 |
 
-- `RankIC = 0.0136`
-- `Precision@5 = 0.0356`
-- `Top-k portfolio return = 0.00603`
+稳定性窗口：
 
-特点：
-- 整体排序不如 LightGBM
-- 组合收益一度优于 LightGBM
-- 是进入时序深度模型阶段的重要过渡模型
-
-### 强化版 StockMixer
-
-- `RankIC = 0.0591`
-- `Precision@5 = 0.0462`
-- `Top-k portfolio return = 0.01033`
-- 最优策略：`proportional_positive_thr0.0`
-- 验证期均值：`0.01085`
-
-结论：
-- 当前最强单模型
-- 当前主提交稿优先级最高
-
-### MASTER
-
-- `RankIC = 0.0348`
-- `Precision@5 = 0.0725`
-- `Top-k portfolio return = 0.01762`
-- 最优策略：`proportional_positive_thr0.0`
-- 验证期均值：`0.01831`
-
-结论：
-- 当前验证集综合表现最强的模型
-- 已经具备作为正式主力模型的价值
-- 但在最近单窗口本地回看里，略低于强化版 `StockMixer`
-
-## 3. 集成阶段结论
-
-已实现：
-- 分数归一化
-- 网格搜索权重
-- recent-window 验证
-- 候选提交导出
-
-当前 best ensemble：
-- 权重：`LightGBM 0.4 + LSTM 0.6 + StockMixer 0.0`
-- `RankIC = 0.0290`
-- `Precision@5 = 0.0791`
-- `Top-k portfolio return = 0.01013`
-
-结论：
-- 集成在部分验证指标上更稳
-- 但当前最近窗口真实回看仍未超过强化版 StockMixer
-- 因此暂不作为主提交方案
-
-## 4. 关于 recent-biased objective 的结论
-
-已尝试：
-- 在 StockMixer 训练中加入更强的近期样本偏置
-- 在集成选择中加入 recent-decay 验证打分
-
-结果：
-- 训练层面的 recent bias 会显著拉差 StockMixer
-- 选择层面的 recent-aware 候选筛选可以保留
-
-结论：
-- 不再继续强化训练层 recent bias
-- 后续只在验证与候选管理层使用“近期偏好”
-
-## 5. 当前建议的提交优先级
-
-### 第一优先级
-
-- `outputs/submissions/result_stockmixer_alpha.csv`
-
-### 第一优先级并列备选
-
-- `outputs/submissions/result_master_alpha.csv`
-
-### 第二优先级
-
-- `outputs/submissions/ensemble_candidates/candidate_1.csv`
-- `outputs/submissions/ensemble_candidates/candidate_2.csv`
-- `outputs/submissions/ensemble_candidates/candidate_3.csv`
-
-用途：
-- 候选对照
-- 提交前最后复查与切换参考
-
-## 6. 下一步可继续推进的方向
-
-### A. 官方 baseline 原仓复现
-
-现在最值得补的一步是：
-- 把赛题基准代码原样跑一次
-- 在相同数据窗口下做更严格的数值对照
-
-### B. 更贴比赛的目标函数
-
-可以做，但建议控制强度，不再明显 recent-bias：
-- 超额收益回归
-- pairwise ranking loss
-- listwise ranking loss
-- 回归 + 排序混合目标
-
-### C. 提交管理与稳健性
-
-这条线很务实，也很值得：
-- 固定保留多个候选提交
-- 做更标准的 rolling retrain
-- 提交前自动回看最近窗口
-- 固定生成“主稿 + 备选稿”
-
-### D. 额外结构化数据
-
-若比赛规则允许且时间足够，可考虑：
-- 行业分类
-- 北向资金
-- 资金流
-- 低频财务/估值因子
-
-## 7. 我们目前最重要的判断
-
-当前这个仓库已经具备：
-- 研究闭环
-- 工程闭环
-- 提交闭环
-
-也就是说，后续工作不再是“从零到一搭框架”，而是：
-- 选择更高价值的新方向
-- 控制试错成本
-- 围绕比赛得分做更精细的优化
-## 8. 官方 Baseline 同仓结果
-
-官方 baseline 原仓复现已经完成，且已经按同一回看口径和我们当前结果做了严格对比。
-
-对比窗口：
-- 参考交易日 `T = 2026-04-17`
-- 买入日 `2026-04-20`
-- 卖出日 `2026-04-24`
-
-结果如下：
-
-| Method | Local Return | vs Official |
-|---|---:|---:|
-| Official baseline | 0.02350 | 0.00000 |
-| LightGBM | 0.03386 | +0.01036 |
-| MASTER | 0.06097 | +0.03747 |
-| StockMixer | 0.06332 | +0.03982 |
-
-这意味着：
-- 当前所有主力提交稿都已超过官方 baseline。
-- `StockMixer` 仍是当前最近窗口本地回看最强稿。
-- `MASTER` 仍是当前验证集综合最强稿。
-
-## 9. 官方 WeightedRankingLoss 迁移实验
-
-已经将官方 baseline 的 Top-5 倾斜排序思想迁移到当前 `StockMixer`，以可配置实验方式保留：
-
-- 实验配置：`configs/stockmixer_alpha_official_rank.yaml`
-- 输出提交稿：`outputs/submissions/result_stockmixer_alpha_official_rank.csv`
-
-实验结果：
-
-| Version | RankIC | Precision@5 | Top-k Return | Recent Local Return |
+| 候选 | 20日 | 40日 | 60日 | 90日 |
 |---|---:|---:|---:|---:|
-| 原强化版 StockMixer | 0.0591 | 0.0462 | 0.0103 | 0.06332 |
-| 加入官方 Top-5 加权损失 | 0.0657 | 0.0527 | 0.0142 | 0.03964 |
+| 原提交 MASTER | `0.02431` | `0.00617` | `0.01309` | `0.01921` |
+| MASTER z-score + softmax | `0.03002` | `0.00733` | `0.01680` | `0.02174` |
+| MASTER relation best | `0.03275` | `0.00841` | `0.01821` | `0.02214` |
 
-结论：
-- 这次迁移**提升了验证集排序与组合指标**。
-- 但它**降低了最近单窗口本地回看收益**。
-- 因此当前保留为可选增强配置，不替换主提交稿。
+## 已完成实验
 
-在 `MASTER` 上的同类实验结论更明显：
+### 行业特征
 
-| Version | RankIC | Precision@5 | Top-k Return | Recent Local Return |
-|---|---:|---:|---:|---:|
-| 原 MASTER | 0.0348 | 0.0725 | 0.0176 | 0.06097 |
-| 加入官方 Top-5 加权损失 | 0.0418 | 0.0593 | 0.0183 | -0.02259 |
+- 行业映射已补强，HS300 中 `other` 从 146 只降到 3 只。
+- 行业特征直接进入 StockMixer fast 后为负增益。
+- 行业约束对 StockMixer 有帮助，但对 MASTER 不稳定。
+- 最终保留行业关系后处理，而不是硬行业 cap。
 
-判断：
-- `MASTER` 的验证集排序指标也有提升。
-- 但最近窗口真实收益显著恶化。
-- 因此这次迁移在 `MASTER` 上也只保留为实验配置，不进入主提交优先级。
+### 关系增强
 
-## 10. Backbone 实验：iTransformer
+新增：
 
-已完成文档中通用 backbone 路线的第一项落地：`iTransformer`。
+```text
+scripts/relation_postprocess.py
+```
 
-相关文件：
-- 配置：`configs/itransformer_alpha.yaml`
-- 训练脚本：`scripts/train_itransformer_backbone.py`
-- 模型实现：`src/models/itransformer.py`
-- 提交文件：`outputs/submissions/result_itransformer_alpha.csv`
+当前最佳参数：
 
-结果：
+```text
+mode = rank_ind_mix
+alpha = -0.5
+strategy = softmax_t0.6
+```
 
-| Model | RankIC | Precision@5 | Top-k Return | Recent Local Return |
-|---|---:|---:|---:|---:|
-| iTransformer | 0.0087 | 0.0242 | 0.0053 | -0.01166 |
+### 组合搜索
 
-结论：
-- 作为通用 backbone，它能学到部分时序信号。
-- 但当前对比赛目标的适配明显不如 `StockMixer / MASTER`。
-- 最近窗口本地回看甚至低于官方 baseline。
-- 因此当前不建议继续把 `iTransformer` 作为主力提交线推进。
+新增：
 
-## 11. 固定等权备选稿对比
+```text
+scripts/search_portfolio_candidates.py
+scripts/postprocess_predictions.py
+```
 
-已经为当前强模型生成固定等权备选稿并完成同窗对比。
+结论：多模型融合没有超过 MASTER 单模型关系增强。
 
-| Submission | Local Return | 备注 |
-|---|---:|---|
-| StockMixer dynamic | 0.06332 | 当前最佳 |
-| StockMixer equal-weight | 0.06077 | 略弱，可保留为稳健备选 |
-| MASTER dynamic | 0.06097 | 当前强备选 |
-| MASTER equal-weight | 0.04982 | 弱于动态 |
-| MASTER official-rank dynamic | -0.02259 | 不保留 |
-| MASTER official-rank equal-weight | -0.02150 | 仍不保留 |
+### TimeXer
 
-结论：
-- 当前动态权重总体优于固定等权。
-- 但 `StockMixer` 的固定等权版本只比动态版略弱，可以作为保守候选稿保留。
+新增：
+
+```text
+src/models/timexer.py
+scripts/train_timexer_backbone.py
+configs/timexer_alpha_fast.yaml
+configs/timexer_alpha_fast_v2.yaml
+```
+
+结论：TimeXer fast / v2 目前 RankIC 有信号，但 top-k 组合收益弱，暂不进主方案。
+
+### 近期窗口训练
+
+新增：
+
+```text
+configs/master_alpha_recent_fast.yaml
+```
+
+结论：近期窗口 MASTER RankIC 尚可，但 top-k 组合收益差，不进入当前主候选。
+
+## 当前关键文件
+
+```text
+docs/experiment_report_2026_04_27.md
+scripts/relation_postprocess.py
+scripts/search_portfolio_candidates.py
+src/features/industry_context.py
+src/models/timexer.py
+app/model/result.csv
+app/output/result.csv
+```
+
+## 推荐下一步
+
+1. 将 relation postprocess 正式接入 `app/code/train.py` 的训练后处理流程。
+2. 做多 seed MASTER，并对 seed 平均分数再做 relation postprocess。
+3. 把关系增强从行业扩展到行业 + 风格桶 + beta/流动性邻居。
+4. 若继续 TimeXer，需要改成 top-k/listwise 目标，而不是只优化 RankIC。
+5. 外源数据只在确认报备流程后引入。
