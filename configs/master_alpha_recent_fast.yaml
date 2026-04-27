@@ -1,0 +1,60 @@
+seed: 43
+
+data:
+  raw_dir: data/raw
+  processed_path: data/processed/model_dataset_master_alpha.csv
+  market_index_path: data/raw/hs300_index.csv
+  reuse_processed: true
+  benchmark_end_date: 2026-04-24
+
+features:
+  lookback_windows: [3, 5, 10, 20, 30]
+
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+
+training:
+  valid_days: 90
+  recent_train_days: 360
+  top_k: 5
+  max_weight_sum: 1.0
+
+portfolio:
+  strategies:
+    - softmax_t0.6
+    - proportional_positive_thr0.0
+    - equal_weight
+  temperature: 0.8
+
+deep:
+  lookback: 20
+  hidden_dim: 96
+  num_heads: 4
+  num_layers: 2
+  ff_dim: 192
+  dropout: 0.12
+  batch_size: 768
+  epochs: 5
+  learning_rate: 0.0008
+  weight_decay: 0.0001
+  early_stopping_patience: 2
+  lr_decay_factor: 0.5
+  min_lr: 0.00001
+  market_gate_strength: 1.0
+  regression_weight: 0.55
+  rank_weight: 0.20
+  corr_weight: 0.10
+  official_rank_weight: 0.15
+  official_top_k: 5
+  official_top_k_weight: 2.0
+  official_base_weight: 1.0
+  official_temperature: 1.0
+  label_clip: 0.18
+
+output:
+  metrics_path: outputs/predictions/master_alpha_recent_fast_metrics.json
+  prediction_path: outputs/predictions/master_alpha_recent_fast_predictions.csv
+  submission_path: outputs/submissions/result_master_alpha_recent_fast.csv

@@ -37,7 +37,11 @@ def main() -> None:
         sell_offset=cfg["label"]["horizon_sell_offset"],
         sell_fallback_offset=cfg["label"].get("horizon_sell_fallback_offset"),
     )
-    df = build_model_dataset(build_cfg)
+    processed_path = Path(cfg["data"]["processed_path"])
+    if cfg["data"].get("reuse_processed") and processed_path.exists():
+        df = pd.read_csv(processed_path, dtype={"stock_id": str})
+    else:
+        df = build_model_dataset(build_cfg)
     df["date"] = pd.to_datetime(df["date"])
 
     feature_columns = [
@@ -49,6 +53,12 @@ def main() -> None:
     ]
     model_df = df.dropna(subset=[cfg["label"]["name"]]).copy()
     train_df, valid_df = _default_time_split(model_df, valid_days=cfg["training"].get("valid_days"))
+    recent_train_days = cfg["training"].get("recent_train_days")
+    if recent_train_days:
+        train_dates = sorted(train_df["date"].dropna().unique())
+        if len(train_dates) > int(recent_train_days):
+            train_start = train_dates[-int(recent_train_days)]
+            train_df = train_df[train_df["date"] >= train_start].copy()
 
     dataset = build_lstm_sequences(
         train_df=train_df,

@@ -1,0 +1,56 @@
+seed: 44
+
+data:
+  raw_dir: data/raw
+  processed_path: data/processed/model_dataset_stockmixer_alpha.csv
+  market_index_path: data/raw/hs300_index.csv
+  reuse_processed: true
+
+features:
+  lookback_windows: [3, 5, 10, 20, 30]
+
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+
+training:
+  valid_days: 90
+  recent_train_days: 540
+  top_k: 5
+  max_weight_sum: 1.0
+
+portfolio:
+  strategies:
+    - softmax_t0.6
+    - proportional_positive_thr0.0
+    - equal_weight
+  temperature: 0.8
+
+deep:
+  lookback: 30
+  d_model: 96
+  nhead: 4
+  num_layers: 2
+  dim_feedforward: 192
+  patch_len: 6
+  stride: 3
+  dropout: 0.12
+  batch_size: 512
+  epochs: 8
+  learning_rate: 0.0007
+  weight_decay: 0.0001
+  early_stopping_patience: 3
+  lr_decay_factor: 0.5
+  min_lr: 0.00001
+  regression_weight: 0.55
+  rank_weight: 0.30
+  corr_weight: 0.15
+  label_clip: 0.18
+  eval_batch_size: 512
+
+output:
+  metrics_path: outputs/predictions/timexer_alpha_fast_v2_metrics.json
+  prediction_path: outputs/predictions/timexer_alpha_fast_v2_predictions.csv
+  submission_path: outputs/submissions/result_timexer_alpha_fast_v2.csv
