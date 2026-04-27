@@ -14,6 +14,26 @@ Thumbs.db
 
 *.log
 
+# Large local archives and package artifacts
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# Model checkpoints and experiment artifacts
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.joblib
+*.npy
+*.npz
+*.parquet
+*.feather
+
 data/raw/*
 data/interim/*
 data/processed/*
@@ -24,8 +44,22 @@ data/processed/*
 outputs/models/*
 outputs/predictions/*
 outputs/submissions/*
+outputs/**/*.ckpt
+outputs/**/*.pt
+outputs/**/*.pth
+outputs/**/*.pkl
+outputs/**/*.npy
+outputs/**/*.npz
 !outputs/models/.gitkeep
 !outputs/predictions/.gitkeep
 !outputs/submissions/.gitkeep
 
 notebooks/*.ipynb
+
+app/data/*
+app/temp/*
+app/model/*
+!app/data/.gitkeep
+!app/temp/.gitkeep
+!app/model/.gitkeep
+!app/model/result.csv
