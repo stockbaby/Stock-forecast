@@ -9,7 +9,7 @@ app/model/result.csv
 app/output/result.csv
 ```
 
-当前最佳候选为 **MASTER official-rank 预测 + 日截面 z-score + 行业关系增强 + softmax 配权**。
+当前最佳候选为 **MASTER official-rank 预测 + relation 2.0 多关系增强 + softmax 配权**。
 
 ## 当前最佳
 
@@ -17,11 +17,11 @@ app/output/result.csv
 
 ```csv
 stock_id,weight
-002422,0.5366080941073169
-688981,0.18532079156062642
-300433,0.14533404575723335
-002049,0.06974993365670436
-688008,0.06298713491811891
+002422,0.4435093966463539
+688981,0.24835891346065442
+300433,0.1419101612088723
+688008,0.0883365840656386
+002049,0.07788494461848086
 ```
 
 验证对比：
@@ -30,7 +30,8 @@ stock_id,weight
 |---|---|---:|---:|---|
 | 已提交 MASTER | `proportional_positive_thr0.0` | `0.01904` | `0.03941` | 原提交版 |
 | MASTER z-score softmax | `softmax_t0.6` | `0.02146` | `0.04904` | 分数标准化有效 |
-| MASTER relation best | `softmax_t0.6` | `0.02177` | `0.05253` | 当前最佳 |
+| MASTER relation best | `softmax_t0.6` | `0.02177` | `0.05253` | 行业关系增强 |
+| MASTER relation 2.0 stable | `softmax_t0.6` | `0.02210` | `0.05158` | 当前最佳 |
 
 更完整的实验报告见：
 
@@ -40,10 +41,10 @@ docs/experiment_report_2026_04_27.md
 
 ## 主要结论
 
-- `MASTER` 是当前最强主模型，后处理后超过之前提交版。
+- `MASTER` 是当前最强主模型，relation 2.0 后处理后超过之前提交版和行业关系版。
 - 行业信息直接作为 StockMixer 特征输入暂时是负增益。
-- 行业关系作为后处理信号有效，当前最佳为 `rank_ind_mix alpha=-0.5`。
-- 多模型融合、TimeXer fast、近期窗口 MASTER 暂未超过 MASTER relation best。
+- 行业关系作为后处理信号有效，进一步扩展到 beta / 波动 / 流动性 / 相关性邻居后继续增益。
+- 多模型融合、TimeXer fast、近期窗口 MASTER 和朴素多 seed 平均暂未超过 MASTER relation 2.0 stable。
 - 当前 `app/` 已更新到最新最佳结果，可用于二次打包。
 
 ## 目录
@@ -71,6 +72,23 @@ D:\anaconda\envs\stock-forecast\python.exe scripts\relation_postprocess.py --pre
 Copy-Item outputs/submissions/result_master_relation_best.csv app/model/result.csv -Force
 Copy-Item outputs/submissions/result_master_relation_best.csv app/output/result.csv -Force
 D:\anaconda\envs\stock-forecast\python.exe app/code/test.py
+```
+
+### 搜索 relation 2.0
+
+```powershell
+D:\anaconda\envs\stock-forecast\python.exe scripts\search_relation_v2.py --prediction-path outputs\predictions\master_alpha_official_rank_predictions.csv --output-dir outputs\relation_v2_master_probe --alphas=-0.7,-0.5,-0.3 --beta-alphas=-0.1,0,0.1 --vol-alphas=-0.1,0,0.1 --liquidity-alphas=-0.1,0,0.1 --corr-alphas=-0.1,0,0.1 --strategies softmax_t0.6 --caps none,3 --top-n 20
+```
+
+当前稳定候选参数：
+
+```text
+alpha=-0.35
+beta_alpha=0.05
+vol_alpha=-0.15
+liquidity_alpha=0.10
+corr_alpha=0.10
+strategy=softmax_t0.6
 ```
 
 ### 训练 MASTER official-rank
@@ -112,6 +130,7 @@ docker save -o PastoralBabyBoom.tar bdc2026:latest
 ## 文档索引
 
 - `docs/experiment_report_2026_04_27.md`：最新实验、评估、比对与结论
+- `docs/relation_v2_report_2026_04_27.md`：relation 2.0 与多 seed MASTER 追加实验
 - `docs/current_status.md`：当前状态摘要
 - `docs/model_survey.md`：模型路线与实验判断
 - `docs/code_spec_alignment.md`：提交规范对齐
