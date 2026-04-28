@@ -81,3 +81,100 @@ outputs/predictions/master_relation_v2_stable_metrics.json
 outputs/predictions/master_multiseed/master_multiseed_metrics.json
 outputs/predictions/relation_v2_stability_ranked.json
 ```
+
+## Relation 2.1 Update
+
+A follow-up stability search added seed-disagreement features and a simple regime-risk penalty. The useful increment came from the regime-risk penalty and a slightly stronger correlation-neighbor term; direct uncertainty penalties were tested but did not improve the stable candidate.
+
+Selected relation 2.1 parameters:
+
+```text
+alpha=-0.35
+beta_alpha=0.05
+vol_alpha=-0.175
+liquidity_alpha=0.075
+corr_alpha=0.125
+uncertainty_alpha=0.0
+uncertainty_rank_alpha=0.0
+regime_risk_alpha=-0.05
+strategy=softmax_t0.6
+```
+
+| Candidate | 91d mean | 91d std | 20d | 40d | 60d | 90d |
+|---|---:|---:|---:|---:|---:|---:|
+| relation 2.0 stable | `0.02210` | `0.05158` | `0.03279` | `0.00853` | `0.01821` | `0.02244` |
+| relation 2.1 stable | `0.02216` | `0.05165` | `0.03286` | `0.00855` | `0.01829` | `0.02251` |
+
+Current synced submission:
+
+```csv
+stock_id,weight
+002422,0.4366668350683564
+688981,0.26023331542128153
+300433,0.13515239050984554
+688008,0.08900648900769771
+002049,0.07894096999281869
+```
+
+Additional artifacts:
+
+```text
+scripts/search_relation_v21.py
+scripts/fast_relation_stability_search.py
+configs/master_alpha_topk_v2.yaml
+outputs/submissions/result_master_relation_v21_stable.csv
+outputs/predictions/master_relation_v21_stable_metrics.json
+outputs/relation_fast_stable_v21_small/
+```
+
+## Top-K Training and Regime Weighting Update
+
+MASTER was updated to support date-batched Top-K/listwise training, so the listwise and pairwise top-k losses are computed inside same-day stock cross sections instead of random mixed batches. The first date-batched Top-K candidate did not improve validation performance:
+
+```text
+configs/master_alpha_topk_v2.yaml
+mean_return = 0.01561
+```
+
+This model is retained as a reproducible experiment, but it is not used in the current submission.
+
+Regime-aware weighting was then searched on top of the stronger relation score. A dynamic temperature switch improved some recent windows but failed the full stability constraint. The selected stable update instead combines a slightly stronger regime-risk score penalty with a more concentrated softmax temperature.
+
+Selected relation 2.2 topk-regime parameters:
+
+```text
+alpha=-0.325
+beta_alpha=0.05
+vol_alpha=-0.20
+liquidity_alpha=0.10
+corr_alpha=0.125
+regime_risk_alpha=-0.075
+strategy=softmax_t0.55
+```
+
+| Candidate | 91d mean | 91d std | 20d | 40d | 60d | 90d |
+|---|---:|---:|---:|---:|---:|---:|
+| relation 2.1 stable | `0.02216` | `0.05165` | `0.03286` | `0.00855` | `0.01829` | `0.02251` |
+| relation 2.2 topk-regime | `0.02219` | `0.05226` | `0.03323` | `0.00871` | `0.01849` | `0.02255` |
+
+Current synced submission:
+
+```csv
+stock_id,weight
+002422,0.4467639190029921
+688981,0.2692725163001993
+300433,0.12745631566083404
+688008,0.08288095756045455
+002049,0.07362629147552009
+```
+
+Additional artifacts:
+
+```text
+outputs/submissions/result_master_relation_v22_topk_regime.csv
+outputs/predictions/master_relation_v22_topk_regime_metrics.json
+outputs/predictions/master_relation_v22_topk_regime_scored.csv
+outputs/regime_weighting_v1/
+outputs/relation_fast_temp055/
+scripts/search_regime_weighting.py
+```

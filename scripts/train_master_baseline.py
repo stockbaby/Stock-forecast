@@ -89,6 +89,9 @@ def main() -> None:
         official_top_k_weight=cfg["deep"].get("official_top_k_weight", 2.0),
         official_base_weight=cfg["deep"].get("official_base_weight", 1.0),
         official_temperature=cfg["deep"].get("official_temperature", 1.0),
+        date_batching=cfg["deep"].get("date_batching", False),
+        validation_strategy=cfg["deep"].get("validation_strategy", "proportional_positive_thr0.0"),
+        validation_rank_weight=cfg["deep"].get("validation_rank_weight", 0.1),
         label_clip=cfg["deep"].get("label_clip", 0.18),
         seed=cfg["seed"],
     )

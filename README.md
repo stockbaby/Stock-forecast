@@ -31,7 +31,9 @@ stock_id,weight
 | 已提交 MASTER | `proportional_positive_thr0.0` | `0.01904` | `0.03941` | 原提交版 |
 | MASTER z-score softmax | `softmax_t0.6` | `0.02146` | `0.04904` | 分数标准化有效 |
 | MASTER relation best | `softmax_t0.6` | `0.02177` | `0.05253` | 行业关系增强 |
-| MASTER relation 2.0 stable | `softmax_t0.6` | `0.02210` | `0.05158` | 当前最佳 |
+| MASTER relation 2.0 stable | `softmax_t0.6` | `0.02210` | `0.05158` | 稳定增强 |
+| MASTER relation 2.1 stable | `softmax_t0.6` | `0.02216` | `0.05165` | regime 风险增强 |
+| MASTER relation 2.2 topk-regime | `softmax_t0.55` | `0.02219` | `0.05226` | 当前最佳 |
 
 更完整的实验报告见：
 
@@ -80,7 +82,7 @@ D:\anaconda\envs\stock-forecast\python.exe app/code/test.py
 D:\anaconda\envs\stock-forecast\python.exe scripts\search_relation_v2.py --prediction-path outputs\predictions\master_alpha_official_rank_predictions.csv --output-dir outputs\relation_v2_master_probe --alphas=-0.7,-0.5,-0.3 --beta-alphas=-0.1,0,0.1 --vol-alphas=-0.1,0,0.1 --liquidity-alphas=-0.1,0,0.1 --corr-alphas=-0.1,0,0.1 --strategies softmax_t0.6 --caps none,3 --top-n 20
 ```
 
-当前稳定候选参数：
+relation 2.0 稳定候选参数：
 
 ```text
 alpha=-0.35
@@ -89,6 +91,30 @@ vol_alpha=-0.15
 liquidity_alpha=0.10
 corr_alpha=0.10
 strategy=softmax_t0.6
+```
+
+relation 2.1 稳定候选在此基础上使用更细参数和 regime 风险惩罚：
+
+```text
+alpha=-0.35
+beta_alpha=0.05
+vol_alpha=-0.175
+liquidity_alpha=0.075
+corr_alpha=0.125
+regime_risk_alpha=-0.05
+strategy=softmax_t0.6
+```
+
+relation 2.2 topk-regime 候选进一步使用更集中的配权温度，并保持 20/40/60/90 日窗口均不低于 relation 2.1：
+
+```text
+alpha=-0.325
+beta_alpha=0.05
+vol_alpha=-0.20
+liquidity_alpha=0.10
+corr_alpha=0.125
+regime_risk_alpha=-0.075
+strategy=softmax_t0.55
 ```
 
 ### 训练 MASTER official-rank

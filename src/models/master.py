@@ -36,6 +36,9 @@ class MasterTrainConfig:
     official_top_k_weight: float = 2.0
     official_base_weight: float = 1.0
     official_temperature: float = 1.0
+    date_batching: bool = False
+    validation_strategy: str = "proportional_positive_thr0.0"
+    validation_rank_weight: float = 0.1
     label_clip: float = 0.18
     seed: int = 42
 
@@ -149,6 +152,18 @@ def _official_weighted_rank_loss(pred, target, config: MasterTrainConfig, torch_
         torch_module=torch_module,
     )
     return listwise + pairwise
+
+
+def _daily_group_rank_loss(pred, target, date_codes, config: MasterTrainConfig, torch_module) -> object:
+    losses = []
+    for code in torch_module.unique(date_codes):
+        mask = date_codes == code
+        if int(mask.sum().item()) < 2:
+            continue
+        losses.append(_official_weighted_rank_loss(pred[mask], target[mask], config, torch_module))
+    if not losses:
+        return pred.new_tensor(0.0)
+    return torch_module.stack(losses).mean()
 
 
 def _corr_loss(pred, target, torch_module) -> object:
@@ -298,26 +313,46 @@ def train_master_regressor(
         min_lr=config.min_lr,
     )
 
-    train_loader = DataLoader(
-        TensorDataset(torch.from_numpy(x_train), torch.from_numpy(y_train)),
-        batch_size=config.batch_size,
-        shuffle=True,
+    train_dates = pd.to_datetime(dataset.train_meta["date"]).astype("int64").to_numpy()
+    _, train_date_codes = np.unique(train_dates, return_inverse=True)
+    train_tensor_dataset = TensorDataset(
+        torch.from_numpy(x_train),
+        torch.from_numpy(y_train),
+        torch.from_numpy(train_date_codes.astype(np.int64)),
     )
+    if config.date_batching:
+        rng = np.random.default_rng(config.seed)
+        batches = [
+            np.asarray(indices, dtype=np.int64)
+            for indices in pd.Series(np.arange(len(train_date_codes))).groupby(train_date_codes).apply(list).tolist()
+        ]
+        rng.shuffle(batches)
+        train_loader = DataLoader(train_tensor_dataset, batch_sampler=batches)
+    else:
+        train_loader = DataLoader(
+            train_tensor_dataset,
+            batch_size=config.batch_size,
+            shuffle=True,
+        )
     best_state = copy.deepcopy(model.state_dict())
     best_score = float("-inf")
     patience = 0
 
     for _ in range(config.epochs):
         model.train()
-        for x_batch, y_batch in train_loader:
+        for x_batch, y_batch, date_batch in train_loader:
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
+            date_batch = date_batch.to(device)
             optimizer.zero_grad()
             preds = model(x_batch)
             reg_loss = torch.nn.functional.smooth_l1_loss(preds, y_batch)
             rank_loss = _pairwise_rank_loss(preds, y_batch, torch)
             corr_loss = _corr_loss(preds, y_batch, torch)
-            official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
+            if config.date_batching:
+                official_rank_loss = _daily_group_rank_loss(preds, y_batch, date_batch, config, torch)
+            else:
+                official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
                 + config.rank_weight * rank_loss
@@ -337,12 +372,12 @@ def train_master_regressor(
             eval_df,
             label_col="label",
             score_col="score",
-            strategy="proportional_positive_thr0.0",
+            strategy=config.validation_strategy,
             top_k=5,
             max_weight_sum=1.0,
             temperature=0.8,
         )
-        val_score = float(portfolio_eval["mean_return"]) + 0.1 * float(val_rank_ic)
+        val_score = float(portfolio_eval["mean_return"]) + config.validation_rank_weight * float(val_rank_ic)
         scheduler.step(val_score)
         if val_score > best_score:
             best_score = val_score

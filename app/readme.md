@@ -31,22 +31,31 @@
 
 1. MASTER official-rank 训练输出预测分数。
 2. 对每日截面预测分数做 z-score 标准化。
-3. 引入行业内 rank 作为关系增强信号。
-4. 使用 `rank_ind_mix alpha=-0.5` 得到关系增强分数。
-5. 使用 `softmax_t0.6` 生成不超过 5 只股票、权重和不超过 1 的组合。
+3. 引入行业内 rank、beta、波动率、流动性、历史相关邻居和 regime 风险作为关系增强信号。
+4. 使用 relation 2.2 topk-regime 后处理得到关系增强分数。
+5. 使用 `softmax_t0.55` 生成不超过 5 只股票、权重和不超过 1 的组合。
 
 ### 关系增强
 
 当前最佳后处理公式：
 
 ```text
-score_relation = 1.5 * score_z - 0.5 * industry_rank
+score_relation =
+  1.325 * score_z
+  -0.325 * industry_rank
+  +0.05 * beta_20_rank
+  -0.20 * volatility_20_rank
+  +0.10 * liquidity_20_rank
+  +0.125 * corr_peer_score
+  -0.075 * high_risk_regime * volatility_20_rank
 ```
 
 其中：
 
 - `score_z` 是 MASTER 分数的日截面 z-score。
 - `industry_rank` 是同一交易日、同行业内的分数百分位排名。
+- `corr_peer_score` 是历史收益正相关邻居的分数确认信号。
+- `high_risk_regime` 由滚动波动率和 beta 的市场状态代理得到。
 
 该关系增强在验证窗口中优于原始 MASTER 动态权重和纯 z-score softmax 版本。
 
@@ -61,7 +70,7 @@ MASTER 训练阶段使用：
 
 ### 模型集成
 
-研发阶段评估过 StockMixer、iTransformer、TimeXer、近期窗口 MASTER 和多模型融合；当前验证结果未超过 MASTER relation best，因此提交版使用单主模型加关系增强后处理。
+研发阶段评估过 StockMixer、iTransformer、TimeXer、近期窗口 MASTER、多模型融合和 Top-K/listwise 增强 MASTER；当前提交版使用单主模型加 relation 2.2 关系增强后处理。
 
 ## 训练流程
 
@@ -91,11 +100,11 @@ bash /app/test.sh
 
 ```csv
 stock_id,weight
-002422,0.5366080941073169
-688981,0.18532079156062642
-300433,0.14533404575723335
-002049,0.06974993365670436
-688008,0.06298713491811891
+002422,0.4467639190029921
+688981,0.2692725163001993
+300433,0.12745631566083404
+688008,0.08288095756045455
+002049,0.07362629147552009
 ```
 
 ## 其他注意事项

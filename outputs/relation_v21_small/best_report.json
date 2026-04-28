@@ -1,0 +1,62 @@
+{
+  "best": {
+    "alpha": -0.35,
+    "beta_alpha": 0.05,
+    "vol_alpha": -0.15,
+    "liquidity_alpha": 0.1,
+    "corr_alpha": 0.1,
+    "uncertainty_alpha": 0.0,
+    "uncertainty_rank_alpha": 0.0,
+    "regime_risk_alpha": -0.1,
+    "strategy": "softmax_t0.6",
+    "max_per_industry": null,
+    "mean_return": 0.022114910003572772,
+    "std_return": 0.051600183190919476,
+    "num_days": 91,
+    "rank_ic": 0.0445892106076523,
+    "precision_at_k": 0.06153846153846156,
+    "top_k_portfolio_return": 0.019375377992175837,
+    "first_half_mean": 0.028944991898628838,
+    "second_half_mean": 0.01543330814971358,
+    "split_min_mean": 0.01543330814971358,
+    "robust_score": 0.02416489328894087
+  },
+  "windows": [
+    {
+      "window_days": 20,
+      "start_date": "2026-03-23",
+      "end_date": "2026-04-20",
+      "rank_ic": 0.10474068954632738,
+      "precision_at_k": 0.030000000000000006,
+      "top_k_portfolio_return": 0.026547931273499997,
+      "strategy_mean_return": 0.03276341525495996
+    },
+    {
+      "window_days": 40,
+      "start_date": "2026-02-13",
+      "end_date": "2026-04-20",
+      "rank_ic": 0.0815727914660321,
+      "precision_at_k": 0.03,
+      "top_k_portfolio_return": 0.007794648392499999,
+      "strategy_mean_return": 0.008531537382412916
+    },
+    {
+      "window_days": 60,
+      "start_date": "2026-01-16",
+      "end_date": "2026-04-20",
+      "rank_ic": 0.05358197768448658,
+      "precision_at_k": 0.053333333333333344,
+      "top_k_portfolio_return": 0.0142670446928,
+      "strategy_mean_return": 0.018240526894923562
+    },
+    {
+      "window_days": 90,
+      "start_date": "2025-12-03",
+      "end_date": "2026-04-20",
+      "rank_ic": 0.04548623145089588,
+      "precision_at_k": 0.06222222222222225,
+      "top_k_portfolio_return": 0.019556524798755564,
+      "strategy_mean_return": 0.02246171397631495
+    }
+  ]
+}
