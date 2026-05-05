@@ -38,6 +38,42 @@ def build_lstm_sequences(
     )
 
 
+def build_prediction_sequences(
+    df: pd.DataFrame,
+    feature_columns: list[str],
+    lookback: int = 20,
+    target_dates: list[pd.Timestamp] | None = None,
+) -> tuple[np.ndarray, pd.DataFrame]:
+    sequences: list[np.ndarray] = []
+    metas: list[dict[str, Any]] = []
+
+    target_set = None
+    if target_dates is not None:
+        target_set = {pd.Timestamp(date).normalize() for date in target_dates}
+
+    df = df.sort_values(["stock_id", "date"]).copy()
+    for stock_id, group in df.groupby("stock_id"):
+        group = group.reset_index(drop=True)
+        x = group[feature_columns].replace([np.inf, -np.inf], np.nan).fillna(0.0).to_numpy(dtype=np.float32)
+        dates = pd.to_datetime(group["date"])
+
+        for idx in range(lookback - 1, len(group)):
+            date = pd.Timestamp(dates.iloc[idx]).normalize()
+            if target_set is not None and date not in target_set:
+                continue
+            seq = x[idx - lookback + 1 : idx + 1]
+            sequences.append(seq)
+            metas.append({"stock_id": str(stock_id), "date": dates.iloc[idx]})
+
+    if not sequences:
+        return (
+            np.empty((0, lookback, len(feature_columns)), dtype=np.float32),
+            pd.DataFrame(columns=["stock_id", "date"]),
+        )
+
+    return np.stack(sequences), pd.DataFrame(metas)
+
+
 def _build_sequences_for_frame(
     df: pd.DataFrame,
     feature_columns: list[str],

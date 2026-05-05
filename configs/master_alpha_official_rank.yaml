@@ -5,6 +5,7 @@ data:
   processed_path: data/processed/model_dataset_master_alpha.csv
   market_index_path: data/raw/hs300_index.csv
   benchmark_end_date: 2026-04-24
+  reuse_processed: true
 
 features:
   lookback_windows: [3, 5, 10, 20, 30]
@@ -57,4 +58,6 @@ deep:
 output:
   metrics_path: outputs/predictions/master_alpha_official_rank_metrics.json
   prediction_path: outputs/predictions/master_alpha_official_rank_predictions.csv
+  latest_prediction_path: outputs/predictions/master_alpha_official_rank_latest_predictions.csv
   submission_path: outputs/submissions/result_master_alpha_official_rank.csv
+  inference_date: 2026-04-24

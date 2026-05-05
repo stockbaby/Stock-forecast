@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.models.deep_sequence import build_lstm_sequences
+from src.models.deep_sequence import build_lstm_sequences, build_prediction_sequences
 from src.models.master import MasterTrainConfig, train_master_regressor
 from src.portfolio.construct import build_top_k_submission, select_best_portfolio_strategy
 from src.training.dataset_builder import DatasetBuildConfig, build_model_dataset
@@ -67,6 +67,20 @@ def main() -> None:
         label_column=cfg["label"]["name"],
         lookback=cfg["deep"]["lookback"],
     )
+    inference_date_value = (
+        cfg.get("output", {}).get("inference_date")
+        or cfg.get("data", {}).get("benchmark_end_date")
+        or df["date"].max()
+    )
+    inference_date = pd.Timestamp(inference_date_value)
+    x_infer, infer_meta = build_prediction_sequences(
+        df=df,
+        feature_columns=feature_columns,
+        lookback=cfg["deep"]["lookback"],
+        target_dates=[inference_date],
+    )
+    dataset.x_infer = x_infer
+    dataset.infer_meta = infer_meta
     master_cfg = MasterTrainConfig(
         hidden_dim=cfg["deep"]["hidden_dim"],
         num_heads=cfg["deep"]["num_heads"],
@@ -95,13 +109,17 @@ def main() -> None:
         label_clip=cfg["deep"].get("label_clip", 0.18),
         seed=cfg["seed"],
     )
-    _, valid_pred_df = train_master_regressor(dataset, master_cfg)
+    model, valid_pred_df = train_master_regressor(dataset, master_cfg)
+    infer_pred_df = getattr(model, "infer_pred_df", None)
 
     eval_df = valid_pred_df.rename(columns={"label": cfg["label"]["name"]})
     metrics = {
         "model_name": "master",
         "n_train_sequences": int(len(dataset.x_train)),
         "n_valid_sequences": int(len(dataset.x_valid)),
+        "n_inference_sequences": int(len(x_infer)),
+        "validation_latest_date": str(pd.Timestamp(valid_pred_df["date"].max()).date()),
+        "inference_date": str(inference_date.date()),
         "n_features": int(len(feature_columns)),
         "rank_ic": rank_ic(eval_df, cfg["label"]["name"], "score"),
         "precision_at_k": precision_at_k(eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]),
@@ -127,9 +145,19 @@ def main() -> None:
     metrics["portfolio_strategy_results"] = strategy_results
 
     save_dataframe(valid_pred_df, cfg["output"]["prediction_path"])
+    latest_prediction_path = cfg["output"].get("latest_prediction_path")
+    if infer_pred_df is not None and not infer_pred_df.empty:
+        if latest_prediction_path:
+            save_dataframe(infer_pred_df, latest_prediction_path)
+        latest_df = infer_pred_df.copy()
+        metrics["submission_source"] = "latest_inference"
+        metrics["submission_date"] = str(pd.Timestamp(latest_df["date"].max()).date())
+    else:
+        latest_date = valid_pred_df["date"].max()
+        latest_df = valid_pred_df[valid_pred_df["date"] == latest_date].copy()
+        metrics["submission_source"] = "validation_fallback"
+        metrics["submission_date"] = str(pd.Timestamp(latest_date).date())
 
-    latest_date = valid_pred_df["date"].max()
-    latest_df = valid_pred_df[valid_pred_df["date"] == latest_date].copy()
     submission = build_top_k_submission(
         latest_df,
         score_col="score",
