@@ -137,6 +137,30 @@ def _weights_from_strategy(
         weights[:subset] = _softmax(scores[:subset], temperature=temperature) * max_weight_sum
         return weights
 
+    if strategy == "confidence_topk":
+        if len(candidates) == 1:
+            return np.array([max_weight_sum], dtype=float)
+        score_std = float(np.std(scores))
+        scale = score_std if score_std > 1e-8 else 1.0
+        margin_12 = float((scores[0] - scores[1]) / scale)
+        top_strength = float((scores[0] - np.mean(scores)) / scale)
+        uncertainty_penalty = 0.0
+        if "score_std" in candidates.columns:
+            std_values = candidates["score_std"].to_numpy(dtype=float)
+            std_scale = float(np.std(std_values))
+            if std_scale > 1e-8:
+                uncertainty_penalty = float((std_values[0] - np.mean(std_values)) / std_scale)
+        confidence = 0.55 * margin_12 + 0.30 * top_strength - 0.25 * uncertainty_penalty
+        top1_weight = max_weight_sum * float(np.clip(0.55 + 0.18 * confidence, 0.35, 0.95))
+        weights = np.zeros(len(candidates), dtype=float)
+        weights[0] = top1_weight
+        if len(candidates) > 1 and top1_weight < max_weight_sum:
+            tail_count = min(4, len(candidates) - 1)
+            weights[1 : 1 + tail_count] = (
+                _softmax(scores[1 : 1 + tail_count], temperature=temperature) * (max_weight_sum - top1_weight)
+            )
+        return weights
+
     if strategy == "softmax":
         return _softmax(scores, temperature=temperature) * max_weight_sum
 
