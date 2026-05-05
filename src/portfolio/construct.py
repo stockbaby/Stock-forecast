@@ -120,6 +120,23 @@ def _weights_from_strategy(
         weights[:subset] = max_weight_sum / subset
         return weights
 
+    if strategy == "top1_weight":
+        weights = np.zeros(len(candidates), dtype=float)
+        weights[0] = max_weight_sum
+        return weights
+
+    if strategy == "top2_softmax":
+        subset = min(2, len(candidates))
+        weights = np.zeros(len(candidates), dtype=float)
+        weights[:subset] = _softmax(scores[:subset], temperature=temperature) * max_weight_sum
+        return weights
+
+    if strategy == "top3_softmax":
+        subset = min(3, len(candidates))
+        weights = np.zeros(len(candidates), dtype=float)
+        weights[:subset] = _softmax(scores[:subset], temperature=temperature) * max_weight_sum
+        return weights
+
     if strategy == "softmax":
         return _softmax(scores, temperature=temperature) * max_weight_sum
 
