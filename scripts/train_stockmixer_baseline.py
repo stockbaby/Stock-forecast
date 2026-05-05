@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.models.deep_sequence import build_lstm_sequences
+from src.models.deep_sequence import build_lstm_sequences, build_prediction_sequences
 from src.models.stockmixer import StockMixerTrainConfig, train_stockmixer_regressor
 from src.portfolio.construct import build_top_k_submission, select_best_portfolio_strategy
 from src.training.dataset_builder import DatasetBuildConfig, build_model_dataset
@@ -67,6 +67,20 @@ def main() -> None:
         label_column=cfg["label"]["name"],
         lookback=cfg["deep"]["lookback"],
     )
+    inference_date_value = (
+        cfg.get("output", {}).get("inference_date")
+        or cfg.get("data", {}).get("benchmark_end_date")
+        or df["date"].max()
+    )
+    inference_date = pd.Timestamp(inference_date_value)
+    x_infer, infer_meta = build_prediction_sequences(
+        df=df,
+        feature_columns=feature_columns,
+        lookback=cfg["deep"]["lookback"],
+        target_dates=[inference_date],
+    )
+    dataset.x_infer = x_infer
+    dataset.infer_meta = infer_meta
     mixer_cfg = StockMixerTrainConfig(
         hidden_dim=cfg["deep"]["hidden_dim"],
         mixer_dim=cfg["deep"]["mixer_dim"],
@@ -93,11 +107,15 @@ def main() -> None:
     )
 
     seed_predictions: list[pd.DataFrame] = []
+    seed_inference_predictions: list[pd.DataFrame] = []
     for seed in cfg["deep"].get("seeds", [cfg.get("seed", 42)]):
         mixer_cfg.seed = int(seed)
-        _, seed_pred_df = train_stockmixer_regressor(dataset, mixer_cfg)
+        model, seed_pred_df = train_stockmixer_regressor(dataset, mixer_cfg)
         seed_pred_df = seed_pred_df.rename(columns={"score": f"score_seed_{seed}"})
         seed_predictions.append(seed_pred_df)
+        seed_infer_df = getattr(model, "infer_pred_df", None)
+        if seed_infer_df is not None and not seed_infer_df.empty:
+            seed_inference_predictions.append(seed_infer_df.rename(columns={"score": f"score_seed_{seed}"}))
 
     valid_pred_df = seed_predictions[0][["stock_id", "date", "label"]].copy()
     score_cols = []
@@ -110,12 +128,29 @@ def main() -> None:
         )
         score_cols.append(seed_score_col)
     valid_pred_df["score"] = valid_pred_df[score_cols].mean(axis=1)
+    if seed_inference_predictions:
+        infer_pred_df = seed_inference_predictions[0][["stock_id", "date"]].copy()
+        infer_score_cols = []
+        for seed_infer_df in seed_inference_predictions:
+            seed_score_col = [col for col in seed_infer_df.columns if col.startswith("score_seed_")][0]
+            infer_pred_df = infer_pred_df.merge(
+                seed_infer_df[["stock_id", "date", seed_score_col]],
+                on=["stock_id", "date"],
+                how="left",
+            )
+            infer_score_cols.append(seed_score_col)
+        infer_pred_df["score"] = infer_pred_df[infer_score_cols].mean(axis=1)
+    else:
+        infer_pred_df = None
 
     eval_df = valid_pred_df.rename(columns={"label": cfg["label"]["name"]})
     metrics = {
         "model_name": "stockmixer",
         "n_train_sequences": int(len(dataset.x_train)),
         "n_valid_sequences": int(len(dataset.x_valid)),
+        "n_inference_sequences": int(len(x_infer)),
+        "validation_latest_date": str(pd.Timestamp(valid_pred_df["date"].max()).date()),
+        "inference_date": str(inference_date.date()),
         "n_features": int(len(feature_columns)),
         "seeds": cfg["deep"].get("seeds", [cfg.get("seed", 42)]),
         "rank_ic": rank_ic(eval_df, cfg["label"]["name"], "score"),
@@ -142,9 +177,19 @@ def main() -> None:
     metrics["portfolio_strategy_results"] = strategy_results
 
     save_dataframe(valid_pred_df, cfg["output"]["prediction_path"])
+    latest_prediction_path = cfg["output"].get("latest_prediction_path")
+    if infer_pred_df is not None and not infer_pred_df.empty:
+        if latest_prediction_path:
+            save_dataframe(infer_pred_df, latest_prediction_path)
+        latest_df = infer_pred_df.copy()
+        metrics["submission_source"] = "latest_inference"
+        metrics["submission_date"] = str(pd.Timestamp(latest_df["date"].max()).date())
+    else:
+        latest_date = valid_pred_df["date"].max()
+        latest_df = valid_pred_df[valid_pred_df["date"] == latest_date].copy()
+        metrics["submission_source"] = "validation_fallback"
+        metrics["submission_date"] = str(pd.Timestamp(latest_date).date())
 
-    latest_date = valid_pred_df["date"].max()
-    latest_df = valid_pred_df[valid_pred_df["date"] == latest_date].copy()
     submission = build_top_k_submission(
         latest_df,
         score_col="score",

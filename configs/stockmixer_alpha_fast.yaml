@@ -54,4 +54,6 @@ deep:
 output:
   metrics_path: outputs/predictions/stockmixer_alpha_fast_metrics.json
   prediction_path: outputs/predictions/stockmixer_alpha_fast_predictions.csv
+  latest_prediction_path: outputs/predictions/stockmixer_alpha_fast_latest_predictions.csv
   submission_path: outputs/submissions/result_stockmixer_alpha_fast.csv
+  inference_date: 2026-04-24

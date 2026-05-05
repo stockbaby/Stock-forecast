@@ -67,20 +67,33 @@ def _normalize_by_group(
     x_train: np.ndarray,
     x_valid: np.ndarray,
     group_indices: list[tuple[str, list[int]]],
-) -> tuple[np.ndarray, np.ndarray]:
-    train = x_train.copy()
-    valid = x_valid.copy()
+) -> tuple[np.ndarray, np.ndarray, list[tuple[list[int], np.ndarray, np.ndarray]]]:
+    stats = _fit_group_normalizers(x_train, group_indices)
+    return _apply_group_normalizers(x_train, stats), _apply_group_normalizers(x_valid, stats), stats
 
+
+def _fit_group_normalizers(
+    x_train: np.ndarray,
+    group_indices: list[tuple[str, list[int]]],
+) -> list[tuple[list[int], np.ndarray, np.ndarray]]:
+    stats: list[tuple[list[int], np.ndarray, np.ndarray]] = []
     for _, indices in group_indices:
-        train_slice = train[:, :, indices]
+        train_slice = x_train[:, :, indices]
         mean = train_slice.mean(axis=(0, 1), keepdims=True)
         std = train_slice.std(axis=(0, 1), keepdims=True)
         std = np.where(std < 1e-6, 1.0, std)
+        stats.append((indices, mean.astype(np.float32), std.astype(np.float32)))
+    return stats
 
-        train[:, :, indices] = np.clip((train_slice - mean) / std, -6.0, 6.0)
-        valid[:, :, indices] = np.clip((valid[:, :, indices] - mean) / std, -6.0, 6.0)
 
-    return train.astype(np.float32), valid.astype(np.float32)
+def _apply_group_normalizers(
+    x_array: np.ndarray,
+    stats: list[tuple[list[int], np.ndarray, np.ndarray]],
+) -> np.ndarray:
+    normalized = x_array.copy()
+    for indices, mean, std in stats:
+        normalized[:, :, indices] = np.clip((normalized[:, :, indices] - mean) / std, -6.0, 6.0)
+    return normalized.astype(np.float32)
 
 
 def _date_batches(meta: pd.DataFrame, batch_size: int, shuffle: bool) -> list[np.ndarray]:
@@ -251,7 +264,7 @@ def train_stockmixer_regressor(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     feature_columns = dataset.feature_columns
     group_indices = _group_feature_indices(feature_columns)
-    x_train, x_valid = _normalize_by_group(dataset.x_train, dataset.x_valid, group_indices)
+    x_train, x_valid, normalizer_stats = _normalize_by_group(dataset.x_train, dataset.x_valid, group_indices)
     y_train = np.clip(dataset.y_train.astype(np.float32), -config.label_clip, config.label_clip)
     y_valid = np.clip(dataset.y_valid.astype(np.float32), -config.label_clip, config.label_clip)
     seq_len = x_train.shape[1]
@@ -427,4 +440,12 @@ def train_stockmixer_regressor(
     valid_pred_df = dataset.valid_meta.copy()
     valid_pred_df["score"] = preds
     valid_pred_df["label"] = dataset.y_valid
+    x_infer = getattr(dataset, "x_infer", None)
+    infer_meta = getattr(dataset, "infer_meta", None)
+    if x_infer is not None and infer_meta is not None and len(x_infer) > 0:
+        x_infer = _apply_group_normalizers(x_infer, normalizer_stats)
+        infer_preds = _predict_in_batches(model, x_infer, config.batch_size, device, torch)
+        infer_pred_df = infer_meta.copy()
+        infer_pred_df["score"] = infer_preds
+        model.infer_pred_df = infer_pred_df
     return model, valid_pred_df
