@@ -72,6 +72,8 @@ def build_model_dataset(config: DatasetBuildConfig) -> pd.DataFrame:
         *[f"ma_ratio_{window}" for window in config.windows],
         *[f"volume_ratio_{window}" for window in config.windows],
         *[f"high_ratio_{window}" for window in config.windows],
+        *[f"close_to_high_{window}" for window in config.windows],
+        *[f"breakout_strength_{window}" for window in config.windows],
         *[f"low_ratio_{window}" for window in config.windows],
         *[f"price_position_{window}" for window in config.windows],
         *[f"ret_to_vol_{window}" for window in config.windows],
@@ -79,6 +81,14 @@ def build_model_dataset(config: DatasetBuildConfig) -> pd.DataFrame:
         *[f"turnover_ratio_{window}" for window in config.windows],
         *[f"pct_chg_mean_{window}" for window in config.windows],
         *[f"volume_volatility_{window}" for window in config.windows],
+        *[f"volume_breakout_{window}" for window in config.windows],
+        *[f"momentum_accel_{window}" for window in config.windows],
+        "short_momentum_3_5",
+        "short_momentum_accel_3_5",
+        "short_volume_momentum_3_5",
+        "trend_alignment_5_20",
+        "trend_accel_5_20",
+        "breakout_volume_confirm_20",
     ]
     market_feature_cols = [
         "index_ret_1",

@@ -232,8 +232,15 @@ def add_industry_features(
         out = pd.concat([out, pd.DataFrame(onehot_cols, index=out.index)], axis=1)
 
     preferred_cols = [
+        "ret_3",
         "ret_5",
         "ret_20",
+        "short_momentum_3_5",
+        "trend_alignment_5_20",
+        "volume_breakout_3",
+        "volume_breakout_5",
+        "breakout_strength_20",
+        "breakout_volume_confirm_20",
         "stock_excess_ret_5",
         "stock_excess_ret_20",
         "ma_ratio_20",
@@ -253,6 +260,17 @@ def add_industry_features(
         feature_blocks[f"industry_excess_{col}"] = out[col] - mean
         feature_blocks[f"industry_z_{col}"] = ((out[col] - mean) / std).replace([np.inf, -np.inf], np.nan).fillna(0.0)
         feature_blocks[f"industry_rank_{col}"] = rank.fillna(0.5)
+
+    if {"ret_3", "ret_5", "volume_ratio_5"}.issubset(out.columns):
+        industry_strength = grouped["ret_3"].transform("mean") + grouped["ret_5"].transform("mean")
+        volume_confirmation = grouped["volume_ratio_5"].transform("mean").clip(lower=0.0)
+        feature_blocks["industry_collective_momentum"] = industry_strength
+        feature_blocks["industry_collective_volume_confirm"] = industry_strength * volume_confirmation
+        feature_blocks["theme_event_pressure"] = (
+            out["short_momentum_3_5"].fillna(0.0)
+            * feature_blocks["industry_collective_momentum"].fillna(0.0)
+            * (1.0 + volume_confirmation.fillna(0.0))
+        )
 
     if feature_blocks:
         out = pd.concat([out, pd.DataFrame(feature_blocks, index=out.index)], axis=1)

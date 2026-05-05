@@ -50,6 +50,8 @@ def add_basic_price_features(df: pd.DataFrame, windows: list[int]) -> pd.DataFra
     out["rsi_14"] = 1 - (1 / (1 + rs))
 
     for window in windows:
+        rolling_high = g["high"].rolling(window).max().reset_index(level=0, drop=True)
+        rolling_volume = g["volume"].rolling(window).mean().reset_index(level=0, drop=True)
         out[f"ret_{window}"] = g["close"].pct_change(window)
         out[f"volatility_{window}"] = g["ret_1"].rolling(window).std().reset_index(level=0, drop=True)
         out[f"ret_mean_{window}"] = g["ret_1"].rolling(window).mean().reset_index(level=0, drop=True)
@@ -61,9 +63,9 @@ def add_basic_price_features(df: pd.DataFrame, windows: list[int]) -> pd.DataFra
         out[f"volume_ratio_{window}"] = (
             out["volume"] / g["volume"].rolling(window).mean().reset_index(level=0, drop=True)
         ) - 1.0
-        out[f"high_ratio_{window}"] = (
-            out["high"] / g["high"].rolling(window).max().reset_index(level=0, drop=True)
-        ) - 1.0
+        out[f"high_ratio_{window}"] = (out["high"] / rolling_high) - 1.0
+        out[f"close_to_high_{window}"] = (out["close"] / rolling_high) - 1.0
+        out[f"breakout_strength_{window}"] = np.maximum(out[f"close_to_high_{window}"], 0.0)
         out[f"low_ratio_{window}"] = (
             out["low"] / g["low"].rolling(window).min().reset_index(level=0, drop=True)
         ) - 1.0
@@ -88,9 +90,20 @@ def add_basic_price_features(df: pd.DataFrame, windows: list[int]) -> pd.DataFra
             out[f"pct_chg_mean_{window}"] = (
                 g["pct_chg_decimal"].rolling(window).mean().reset_index(level=0, drop=True)
             )
-        out[f"volume_volatility_{window}"] = g["volume"].rolling(window).std().reset_index(level=0, drop=True) / g[
-            "volume"
-        ].rolling(window).mean().reset_index(level=0, drop=True).replace(0, np.nan)
+        out[f"volume_volatility_{window}"] = (
+            g["volume"].rolling(window).std().reset_index(level=0, drop=True) / rolling_volume.replace(0, np.nan)
+        )
+        out[f"volume_breakout_{window}"] = out[f"volume_ratio_{window}"] * out["ret_1"].clip(lower=0.0)
+        out[f"momentum_accel_{window}"] = out[f"ret_{window}"] - out[f"ret_mean_{window}"] * window
+
+    if {3, 5}.issubset(set(windows)):
+        out["short_momentum_3_5"] = out["ret_3"] + out["ret_5"]
+        out["short_momentum_accel_3_5"] = out["ret_3"] - out["ret_5"]
+        out["short_volume_momentum_3_5"] = out["short_momentum_3_5"] * out["volume_ratio_3"].clip(lower=0.0)
+    if {5, 20}.issubset(set(windows)):
+        out["trend_alignment_5_20"] = out["ret_5"] + out["ret_20"]
+        out["trend_accel_5_20"] = out["ret_5"] - out["ret_20"]
+        out["breakout_volume_confirm_20"] = out["breakout_strength_20"] * out["volume_ratio_5"].clip(lower=0.0)
 
     return out
 
@@ -124,7 +137,7 @@ def build_feature_groups(feature_cols: list[str]) -> dict[str, list[str]]:
     volume_tokens = ("volume", "amount", "turnover")
     volatility_tokens = ("volatility", "amplitude", "shadow", "body", "ret_std", "ret_skew", "ret_to_vol", "rsi")
     market_tokens = ("index_", "market_", "beta_", "regime_", "excess_", "idio_", "alpha_")
-    style_tokens = ("style_", "bucket", "group_")
+    style_tokens = ("style_", "bucket", "group_", "theme_", "industry_collective")
     cross_tokens = ("_cs_z", "_cs_rank")
 
     for col in feature_cols:
@@ -140,7 +153,20 @@ def build_feature_groups(feature_cols: list[str]) -> dict[str, list[str]]:
             groups["volatility"].append(col)
         elif any(
             token in col
-            for token in ("open", "close", "high", "low", "ret_", "ma_ratio", "ema_", "macd", "price_position")
+            for token in (
+                "open",
+                "close",
+                "high",
+                "low",
+                "ret_",
+                "ma_ratio",
+                "ema_",
+                "macd",
+                "price_position",
+                "momentum",
+                "breakout",
+                "trend_",
+            )
         ):
             groups["price"].append(col)
         else:
