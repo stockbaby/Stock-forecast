@@ -72,6 +72,53 @@ configs/stockmixer_alpha_fast_portfolio_return.yaml
 
 Important note: early StockMixer fast tests showed that making this objective too dominant can overfit noisy heads. The production configs remain stable; portfolio-return configs are for controlled walk-forward experiments.
 
+### MASTER Portfolio-Return Experiment
+
+`configs/master_alpha_portfolio_return.yaml` was trained and compared against the stable official MASTER using the same top allocation candidates:
+
+```text
+top1_weight
+confidence_topk
+top2_softmax
+```
+
+The portfolio-return objective did not improve the current pipeline. It overfit the first half of validation and failed in walk-forward evaluation.
+
+Validation comparison:
+
+| Method | Strategy | Mean | Std | Var | Neg Rate | Latest A Score |
+|---|---|---:|---:|---:|---:|---:|
+| master_official | top2_softmax | 0.021445 | 0.049134 | 0.002414 | 0.318681 | 0.049636 |
+| master_official | top1_weight | 0.021298 | 0.065220 | 0.004254 | 0.373626 | 0.106689 |
+| master_official | confidence_topk | 0.019817 | 0.052214 | 0.002726 | 0.362637 | 0.062790 |
+| master_portfolio | top2_softmax | 0.004505 | 0.052009 | 0.002705 | 0.461538 | -0.009548 |
+| master_portfolio | top1_weight | 0.002708 | 0.072972 | 0.005325 | 0.450549 | -0.051551 |
+| master_portfolio | confidence_topk | 0.002658 | 0.058963 | 0.003477 | 0.472527 | -0.032764 |
+
+Walk-forward simulation for `master_alpha_portfolio_return`:
+
+| Selection Window | Mean | Std |
+|---:|---:|---:|
+| 20 | 0.000549 | 0.063677 |
+| 40 | 0.000682 | 0.059233 |
+| 60 | 0.000993 | 0.063721 |
+
+Split holdout also showed overfitting:
+
+```text
+first-half selected strategy = top1_weight
+first-half mean = 0.020262
+second-half test mean = -0.014464
+```
+
+Conclusion: the direction is conceptually correct, but the current direct softmax portfolio-return loss is too noisy. Keep it as an experiment only. The next attempt should use a more robust surrogate, such as:
+
+- top-label weighted listwise loss with capped labels
+- downside-penalized portfolio-return loss
+- walk-forward selected objective weights
+- lower `portfolio_return_weight`
+- multi-seed averaging before portfolio construction
+
 Relevant commit:
 
 ```text
