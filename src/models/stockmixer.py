@@ -35,6 +35,9 @@ class StockMixerTrainConfig:
     official_top_k_weight: float = 2.0
     official_base_weight: float = 1.0
     official_temperature: float = 1.0
+    portfolio_return_weight: float = 0.0
+    portfolio_temperature: float = 0.25
+    portfolio_top_k: int = 5
     label_clip: float = 0.2
     patch_sizes: tuple[int, ...] = (5, 10, 20, 30)
     seed: int = 42
@@ -201,6 +204,18 @@ def _official_weighted_rank_loss(
         torch_module=torch_module,
     )
     return listwise + pairwise
+
+
+def _portfolio_return_loss(pred, target, config: StockMixerTrainConfig, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+    top_k = min(int(config.portfolio_top_k), int(pred.numel()))
+    if top_k <= 0:
+        return pred.new_tensor(0.0)
+    top_scores, top_indices = torch_module.topk(pred, top_k)
+    weights = torch_module.softmax(top_scores / max(float(config.portfolio_temperature), 1e-3), dim=0)
+    portfolio_return = (weights * target[top_indices]).sum()
+    return -portfolio_return
 
 
 def _corr_loss(pred, target, torch_module) -> object:
@@ -409,11 +424,13 @@ def train_stockmixer_regressor(
             rank_loss = _pairwise_rank_loss(preds, y_batch, torch)
             corr_loss = _corr_loss(preds, y_batch, torch)
             official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
+            portfolio_return_loss = _portfolio_return_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
                 + config.rank_weight * rank_loss
                 + config.corr_weight * corr_loss
                 + config.official_rank_weight * official_rank_loss
+                + config.portfolio_return_weight * portfolio_return_loss
             )
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)

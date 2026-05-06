@@ -39,6 +39,9 @@ class MasterTrainConfig:
     date_batching: bool = False
     validation_strategy: str = "proportional_positive_thr0.0"
     validation_rank_weight: float = 0.1
+    portfolio_return_weight: float = 0.0
+    portfolio_temperature: float = 0.25
+    portfolio_top_k: int = 5
     label_clip: float = 0.18
     seed: int = 42
 
@@ -177,6 +180,30 @@ def _daily_group_rank_loss(pred, target, date_codes, config: MasterTrainConfig, 
         if int(mask.sum().item()) < 2:
             continue
         losses.append(_official_weighted_rank_loss(pred[mask], target[mask], config, torch_module))
+    if not losses:
+        return pred.new_tensor(0.0)
+    return torch_module.stack(losses).mean()
+
+
+def _portfolio_return_loss(pred, target, config: MasterTrainConfig, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+    top_k = min(int(config.portfolio_top_k), int(pred.numel()))
+    if top_k <= 0:
+        return pred.new_tensor(0.0)
+    top_scores, top_indices = torch_module.topk(pred, top_k)
+    weights = torch_module.softmax(top_scores / max(float(config.portfolio_temperature), 1e-3), dim=0)
+    portfolio_return = (weights * target[top_indices]).sum()
+    return -portfolio_return
+
+
+def _daily_group_portfolio_return_loss(pred, target, date_codes, config: MasterTrainConfig, torch_module) -> object:
+    losses = []
+    for code in torch_module.unique(date_codes):
+        mask = date_codes == code
+        if int(mask.sum().item()) < 2:
+            continue
+        losses.append(_portfolio_return_loss(pred[mask], target[mask], config, torch_module))
     if not losses:
         return pred.new_tensor(0.0)
     return torch_module.stack(losses).mean()
@@ -367,13 +394,16 @@ def train_master_regressor(
             corr_loss = _corr_loss(preds, y_batch, torch)
             if config.date_batching:
                 official_rank_loss = _daily_group_rank_loss(preds, y_batch, date_batch, config, torch)
+                portfolio_return_loss = _daily_group_portfolio_return_loss(preds, y_batch, date_batch, config, torch)
             else:
                 official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
+                portfolio_return_loss = _portfolio_return_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
                 + config.rank_weight * rank_loss
                 + config.corr_weight * corr_loss
                 + config.official_rank_weight * official_rank_loss
+                + config.portfolio_return_weight * portfolio_return_loss
             )
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)

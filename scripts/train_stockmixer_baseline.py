@@ -102,6 +102,9 @@ def main() -> None:
         official_top_k_weight=cfg["deep"].get("official_top_k_weight", 2.0),
         official_base_weight=cfg["deep"].get("official_base_weight", 1.0),
         official_temperature=cfg["deep"].get("official_temperature", 1.0),
+        portfolio_return_weight=cfg["deep"].get("portfolio_return_weight", 0.0),
+        portfolio_temperature=cfg["deep"].get("portfolio_temperature", 0.25),
+        portfolio_top_k=cfg["deep"].get("portfolio_top_k", cfg["training"]["top_k"]),
         label_clip=cfg["deep"].get("label_clip", 0.2),
         patch_sizes=tuple(cfg["deep"].get("patch_sizes", [5, 10, 20, 30])),
     )

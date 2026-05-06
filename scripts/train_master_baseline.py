@@ -106,6 +106,9 @@ def main() -> None:
         date_batching=cfg["deep"].get("date_batching", False),
         validation_strategy=cfg["deep"].get("validation_strategy", "proportional_positive_thr0.0"),
         validation_rank_weight=cfg["deep"].get("validation_rank_weight", 0.1),
+        portfolio_return_weight=cfg["deep"].get("portfolio_return_weight", 0.0),
+        portfolio_temperature=cfg["deep"].get("portfolio_temperature", 0.25),
+        portfolio_top_k=cfg["deep"].get("portfolio_top_k", cfg["training"]["top_k"]),
         label_clip=cfg["deep"].get("label_clip", 0.18),
         seed=cfg["seed"],
     )
