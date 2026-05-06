@@ -1,5 +1,30 @@
 # Stock Forecast for CSI 300 Competition
 
+## Latest Update 2026-05-06
+
+See the current post-replay status and next research direction:
+
+```text
+docs/latest_progress_2026_05_06.md
+```
+
+Current production result:
+
+```csv
+stock_id,weight
+002493,1.0
+```
+
+Key updates:
+
+- Fixed true latest inference for unlabeled `T=2026-04-24`.
+- Added walk-forward online-window simulation.
+- Added concentrated and confidence-aware portfolio allocation.
+- Added MASTER/StockMixer candidate switching.
+- Added theme/momentum/breakout features.
+- Added portfolio-return training objective experiments.
+- Added multi-method validation script: `scripts/validate_multiple_methods.py`.
+
 本仓库用于沪深 300 成分股未来收益预测与 Top-5 组合生成，覆盖数据处理、特征工程、深度模型训练、组合后处理、Docker 提交目录整理和实验记录。
 
 当前推荐结果已经同步到：

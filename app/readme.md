@@ -100,12 +100,10 @@ bash /app/test.sh
 
 ```csv
 stock_id,weight
-002422,0.4467639190029921
-688981,0.2692725163001993
-300433,0.12745631566083404
-688008,0.08288095756045455
-002049,0.07362629147552009
+002493,1.0
 ```
+
+Latest note: the current result is the aggressive Top1 allocation generated after fixing true latest inference for unlabeled `T=2026-04-24`. See `docs/latest_progress_2026_05_06.md` for the replay score, fallback strategies, and multi-method validation.
 
 ## 其他注意事项
 
