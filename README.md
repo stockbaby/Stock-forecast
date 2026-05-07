@@ -6,6 +6,8 @@ See the current post-replay status and next research direction:
 
 ```text
 docs/latest_progress_2026_05_06.md
+docs/code_review_meeting_2026_05_07.md
+docs/code_review_meeting_2026_05_07.pptx
 ```
 
 Current production result:
