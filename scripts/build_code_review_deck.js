@@ -188,6 +188,76 @@ function bar(slide, label, value, max, x, y, w, color) {
   addText(slide, value.toFixed(3), x + 2.65 + w + 0.12, y - 0.01, 0.6, 0.18, { size: 7.5, color: C.muted, margin: 0 });
 }
 
+function codeBox(slide, title, code, x, y, w, h, color = C.blue) {
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x,
+    y,
+    w,
+    h,
+    rectRadius: 0.05,
+    fill: { color: "F8FAFC" },
+    line: { color: C.line, width: 0.8 },
+  });
+  slide.addShape(pptx.ShapeType.rect, {
+    x,
+    y,
+    w,
+    h: 0.34,
+    fill: { color },
+    line: { color },
+  });
+  slide.addText(title, {
+    x: x + 0.12,
+    y: y + 0.08,
+    w: w - 0.24,
+    h: 0.14,
+    fontFace: "Microsoft YaHei",
+    fontSize: 7.5,
+    bold: true,
+    color: C.white,
+    margin: 0,
+    fit: "shrink",
+  });
+  slide.addText(code, {
+    x: x + 0.12,
+    y: y + 0.48,
+    w: w - 0.24,
+    h: h - 0.58,
+    fontFace: "Consolas",
+    fontSize: 6.6,
+    color: "111827",
+    margin: 0,
+    breakLine: false,
+    fit: "shrink",
+  });
+}
+
+function smallFlow(slide, items, x, y, w, color = C.blue) {
+  const boxW = w / items.length - 0.18;
+  items.forEach((item, i) => {
+    const bx = x + i * (boxW + 0.18);
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: bx,
+      y,
+      w: boxW,
+      h: 0.58,
+      rectRadius: 0.05,
+      fill: { color: i === items.length - 1 ? "E0F2FE" : C.pale },
+      line: { color: i === items.length - 1 ? "7DD3FC" : C.line, width: 0.8 },
+    });
+    addText(slide, item, bx + 0.06, y + 0.15, boxW - 0.12, 0.24, { size: 7.5, bold: true, margin: 0 });
+    if (i < items.length - 1) {
+      slide.addShape(pptx.ShapeType.line, {
+        x: bx + boxW + 0.03,
+        y: y + 0.29,
+        w: 0.12,
+        h: 0,
+        line: { color, width: 1, endArrowType: "triangle" },
+      });
+    }
+  });
+}
+
 // 1 Cover
 {
   const slide = pptx.addSlide();
@@ -407,6 +477,129 @@ function bar(slide, label, value, max, x, y, w, color) {
   slide.addShape(pptx.ShapeType.line, { x: 1.0, y: 5.45, w: 10.9, h: 0, line: { color: C.line, width: 1.5 } });
   addText(slide, "North star", 0.95, 5.9, 1.3, 0.25, { size: 10.5, bold: true, color: C.muted, margin: 0 });
   addText(slide, "每个新阶段：确认 T 日推理正确 → 多方法 walk-forward → 根据风险档位生成提交。", 2.3, 5.83, 8.6, 0.35, { size: 15, bold: true, color: C.ink, margin: 0 });
+}
+
+// 12 Review priorities
+{
+  const slide = addSlide("Code review priorities: inspect by failure impact", "SOURCE APPENDIX");
+  addTable(slide, [
+    [{ text: "Priority", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Area", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Source files", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Meeting question", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    ["P0", "Latest T-date inference", "src/models/deep_sequence.py\nscripts/train_master_baseline.py", "Can result.csv ever be generated from the last labeled validation day again?"],
+    ["P1", "Portfolio risk gate", "src/portfolio/construct.py", "When should Top1 be allowed, capped, or downgraded to Top2/confidence?"],
+    ["P1", "Walk-forward validation", "scripts/simulate_online_windows.py\nscripts/validate_multiple_methods.py", "Are parameters selected only from information available before T?"],
+    ["P2", "Training objective", "src/models/master.py", "How do we align loss with final portfolio return without chasing noisy extremes?"],
+    ["P2", "Data engineering", "src/training/dataset_builder.py\nsrc/features/*.py", "Which columns are guaranteed, optional, or cached from previous processed artifacts?"],
+  ], 0.7, 1.4, 11.95, 4.45, [0.8, 2.0, 3.5, 5.25]);
+  addText(slide, "Review stance: protect online correctness first; increase modeling complexity only after the submission loop is reproducible.", 0.85, 6.35, 10.8, 0.3, { size: 13, bold: true, color: C.blue, margin: 0 });
+}
+
+// 13 Source: latest inference
+{
+  const slide = addSlide("P0 source: latest T-date inference", "SOURCE APPENDIX");
+  smallFlow(slide, ["processed data", "labeled train", "unlabeled T", "latest scores", "result.csv"], 0.85, 1.35, 11.4, C.blue);
+  codeBox(slide, "src/models/deep_sequence.py", `def build_prediction_sequences(df, feature_cols, target_date, ...):
+    """Build model input sequences ending at target_date
+    for stocks without labels."""
+    target_rows = df[df["date"] == target_date]
+    for stock_id in target_rows["stock_id"]:
+        hist = df[(df.stock_id == stock_id) & (df.date <= target_date)]
+        sequences.append(hist[feature_cols].tail(seq_len))`, 0.85, 2.35, 5.7, 3.25, C.blue);
+  codeBox(slide, "scripts/train_master_baseline.py", `inference_date_value = cfg.get("inference_date")
+inference_date = pd.to_datetime(inference_date_value) if inference_date_value else processed["date"].max()
+infer_x, infer_meta = build_prediction_sequences(
+    processed,
+    feature_cols=feature_cols,
+    target_date=inference_date,
+)
+dataset.x_infer = infer_x
+dataset.infer_meta = infer_meta`, 6.85, 2.35, 5.55, 3.25, C.green);
+  tag(slide, "Must assert latest_pred.date == configured T before submission", 3.15, 6.25, 5.35, C.red);
+}
+
+// 14 Source: portfolio risk
+{
+  const slide = addSlide("P1 source: confidence-aware portfolio allocation", "SOURCE APPENDIX");
+  smallFlow(slide, ["scores", "rank", "margin/std", "concentration", "weights"], 0.85, 1.35, 11.4, C.green);
+  codeBox(slide, "src/portfolio/construct.py", `elif strategy == "confidence_topk":
+    top = df.head(max(1, min(top_k, len(df)))).copy()
+    scores = top["score"].to_numpy(dtype=float)
+    std = top["score_std"].to_numpy(dtype=float) if "score_std" in top.columns else None
+    margin = float(scores[0] - scores[1]) if len(scores) > 1 else abs(float(scores[0]))
+    concentration = _confidence_concentration(
+        top_score=float(scores[0]),
+        margin=margin,
+        score_std=float(std[0]) if std is not None else 0.0,
+    )`, 0.85, 2.3, 6.25, 3.55, C.green);
+  addText(slide, "Review decisions", 7.55, 2.35, 1.8, 0.25, { size: 13, bold: true, color: C.blue, margin: 0 });
+  bulletList(slide, [
+    "Production default: top1, top2, or confidence?",
+    "Should multi-seed score_std cap single-stock weight?",
+    "Do we need our own max single-stock cap?",
+    "Should each result save margin/std/fallback reason?",
+  ], 7.6, 2.8, 4.35, 2.0);
+  metric(slide, "Top1 std", "6.52%", 7.6, 5.25, 1.45, C.red);
+  metric(slide, "Top2 std", "4.91%", 9.55, 5.25, 1.45, C.green);
+}
+
+// 15 Source: validation
+{
+  const slide = addSlide("P1 source: walk-forward validation loop", "SOURCE APPENDIX");
+  smallFlow(slide, ["history before T", "select params", "build portfolio", "score T+1:T+5", "advance T"], 0.85, 1.35, 11.4, C.cyan);
+  codeBox(slide, "scripts/simulate_online_windows.py", `def walk_forward_simulation(pred_df, strategies, *, lookback_days, ...):
+    for current_date in evaluation_dates:
+        history = pred_df[pred_df["date"] < current_date]
+        select_window = history.tail(lookback_days)
+        best_strategy = choose_strategy(select_window, strategies)
+        portfolio = construct_portfolio(pred_df[pred_df["date"] == current_date], strategy=best_strategy)
+        score = evaluate_realized_return(portfolio, current_date)`, 0.85, 2.3, 5.95, 3.35, C.cyan);
+  codeBox(slide, "scripts/validate_multiple_methods.py", `DEFAULT_STRATEGIES = [
+    "top1_weight",
+    "confidence_topk",
+    "top2_softmax",
+    "top3_softmax",
+    "proportional_positive_thr0.0",
+]`, 7.15, 2.3, 4.9, 2.15, C.orange);
+  addText(slide, "Audit rule: no parameter can be chosen using data after the simulated submission date T.", 7.2, 5.05, 4.5, 0.5, { size: 13, bold: true, color: C.red, margin: 0 });
+}
+
+// 16 Data engineering example
+{
+  const slide = addSlide("P2 data engineering: raw row to model row", "DATA ENGINEERING");
+  smallFlow(slide, ["raw OHLCV", "normalize", "rolling features", "cross-section ranks", "label/infer split"], 0.85, 1.3, 11.4, C.blue);
+  addTable(slide, [
+    [{ text: "Stage", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Example", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Audit check", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    ["Raw", "stock_id/date/open/close/high/low/volume/amount", "stock_id must remain zero-padded text"],
+    ["Feature", "ret_1, ret_5, volume_ratio_5, volatility, ranks", "no future shift except explicit label columns"],
+    ["Inference T", "2026-04-24 rows have blank future label", "features up to T only"],
+    ["Replay", "T+1 open to T+5 open return after phase", "used only for post-submit evaluation"],
+  ], 0.85, 2.25, 11.3, 2.35, [1.3, 5.2, 4.8]);
+  codeBox(slide, "sample processed T rows", `stock_id,date,open,close,ret_1,ret_5,volume_ratio_5,label
+000001,2026-04-24,1327.83,1330.25, 0.0000,-0.0009,-0.1692,
+000002,2026-04-24, 510.28, 503.57,-0.0157,-0.0530, 0.0605,
+000063,2026-04-24, 500.44, 497.84,-0.0128, 0.0297,-0.1778,`, 1.0, 5.15, 10.7, 1.3, C.blue);
+  addText(slide, "Caveat: theme/momentum code can exist while the cached processed artifact still needs a rebuild before those columns appear.", 1.0, 6.72, 10.2, 0.25, { size: 10, color: C.red, bold: true, margin: 0 });
+}
+
+// 17 Source: objective
+{
+  const slide = addSlide("P2 source: portfolio-return objective", "SOURCE APPENDIX");
+  smallFlow(slide, ["pred scores", "top-K", "softmax weights", "future returns", "negative loss"], 0.85, 1.35, 11.4, C.orange);
+  codeBox(slide, "src/models/master.py", `def _portfolio_return_loss(pred, target, *, top_k, temperature):
+    k = min(top_k, pred.numel())
+    _, idx = torch.topk(pred, k=k)
+    selected_pred = pred[idx]
+    selected_target = target[idx]
+    weights = torch.softmax(selected_pred / temperature, dim=0)
+    portfolio_return = torch.sum(weights * selected_target)
+    return -portfolio_return`, 0.85, 2.3, 5.7, 2.75, C.orange);
+  addText(slide, "Why v1 failed", 7.05, 2.35, 1.6, 0.24, { size: 13, bold: true, color: C.red, margin: 0 });
+  bulletList(slide, [
+    "Head labels are noisy and extreme.",
+    "Softmax can overreact to small score gaps.",
+    "Direct loss underperformed official MASTER in replay.",
+    "Next version should add capped labels, downside penalty, multi-seed smoothing, and late-stage blending.",
+  ], 7.1, 2.8, 4.6, 2.1);
+  addText(slide, "This is an experiment track, not a production replacement yet.", 2.9, 6.2, 6.4, 0.3, { size: 14, bold: true, color: C.blue, margin: 0 });
 }
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });

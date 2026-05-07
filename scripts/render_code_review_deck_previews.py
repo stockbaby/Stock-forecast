@@ -93,6 +93,28 @@ def table(d: ImageDraw.ImageDraw, x: int, y: int, rows: list[list[str]], colw: l
         yy += rowh
 
 
+def code_block(d: ImageDraw.ImageDraw, x: int, y: int, title: str, code: str, w: int, h: int, color: str = BLUE) -> None:
+    d.rounded_rectangle((x, y, x + w, y + h), radius=12, outline=LINE, fill="#F8FAFC", width=2)
+    d.rectangle((x, y, x + w, y + 42), fill=color)
+    d.text((x + 14, y + 12), title, font=font(15, True), fill="white")
+    yy = y + 58
+    for line in code.splitlines():
+        d.text((x + 14, yy), line[:96], font=font(14), fill="#111827")
+        yy += 20
+        if yy > y + h - 20:
+            break
+
+
+def flow(d: ImageDraw.ImageDraw, x: int, y: int, items: list[str], w: int, color: str = BLUE) -> None:
+    box_w = (w - 34 * (len(items) - 1)) // len(items)
+    for i, item in enumerate(items):
+        bx = x + i * (box_w + 34)
+        d.rounded_rectangle((bx, y, bx + box_w, y + 72), radius=12, fill="#E0F2FE" if i == len(items) - 1 else PALE, outline=LINE)
+        draw_text(d, (bx + 12, y + 22), item, 17, INK, True, width=box_w - 24)
+        if i < len(items) - 1:
+            d.line((bx + box_w + 8, y + 36, bx + box_w + 26, y + 36), fill=color, width=3)
+
+
 def save(img: Image.Image, idx: int) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     img.save(OUT_DIR / f"slide_{idx:02d}.png")
@@ -223,4 +245,120 @@ d.line((120, 680, 1460, 680), fill=LINE, width=2)
 draw_text(d, (130, 730), "North star: 每个新阶段：确认 T 日推理正确 → 多方法 walk-forward → 根据风险档位生成提交。", 27, INK, True, 1250)
 save(img, 11)
 
-print(f"wrote {len(list(OUT_DIR.glob('slide_*.png')))} previews to {OUT_DIR}")
+img, d = base("Code review priorities: inspect by failure impact", "SOURCE APPENDIX")
+table(d, 85, 175, [
+    ["Priority", "Area", "Source files", "Meeting question"],
+    ["P0", "Latest T-date inference", "deep_sequence.py\ntrain_master_baseline.py", "Can result.csv use the last labeled validation day again?"],
+    ["P1", "Portfolio risk gate", "construct.py", "When should Top1 be allowed, capped, or downgraded?"],
+    ["P1", "Walk-forward validation", "simulate_online_windows.py\nvalidate_multiple_methods.py", "Are params selected only from information before T?"],
+    ["P2", "Training objective", "master.py", "How do we align loss with final portfolio return?"],
+    ["P2", "Data engineering", "dataset_builder.py\nfeatures/*.py", "Which columns are guaranteed, optional, or cached?"],
+], [120, 300, 420, 610], 64)
+draw_text(d, (105, 785), "Review stance: protect online correctness first; add complexity only after the submission loop is reproducible.", 24, BLUE, True, 1300)
+save(img, 12)
+
+img, d = base("P0 source: latest T-date inference", "SOURCE APPENDIX")
+flow(d, 105, 160, ["processed data", "labeled train", "unlabeled T", "latest scores", "result.csv"], 1350)
+code_block(d, 100, 300, "src/models/deep_sequence.py", """def build_prediction_sequences(df, feature_cols, target_date, ...):
+    target_rows = df[df["date"] == target_date]
+    for stock_id in target_rows["stock_id"]:
+        hist = df[(df.stock_id == stock_id) & (df.date <= target_date)]
+        sequences.append(hist[feature_cols].tail(seq_len))""", 670, 330, BLUE)
+code_block(d, 820, 300, "scripts/train_master_baseline.py", """inference_date_value = cfg.get("inference_date")
+inference_date = pd.to_datetime(inference_date_value)
+infer_x, infer_meta = build_prediction_sequences(
+    processed, feature_cols=feature_cols, target_date=inference_date)
+dataset.x_infer = infer_x
+dataset.infer_meta = infer_meta""", 620, 330, GREEN)
+draw_text(d, (350, 730), "Must assert latest_pred.date == configured T before submission.", 28, RED, True, 900)
+save(img, 13)
+
+img, d = base("P1 source: confidence-aware portfolio allocation", "SOURCE APPENDIX")
+flow(d, 105, 160, ["scores", "rank", "margin/std", "concentration", "weights"], 1350, GREEN)
+code_block(d, 100, 300, "src/portfolio/construct.py", """elif strategy == "confidence_topk":
+    top = df.head(max(1, min(top_k, len(df)))).copy()
+    scores = top["score"].to_numpy(dtype=float)
+    std = top["score_std"].to_numpy(dtype=float) if "score_std" in top.columns else None
+    margin = float(scores[0] - scores[1]) if len(scores) > 1 else abs(float(scores[0]))
+    concentration = _confidence_concentration(top_score=float(scores[0]),
+        margin=margin, score_std=float(std[0]) if std is not None else 0.0)""", 740, 360, GREEN)
+bullets(d, 900, 315, [
+    "Production default: top1, top2, or confidence?",
+    "Should score_std cap single-stock weight?",
+    "Do we need our own max stock cap?",
+    "Save margin/std/fallback reason with every result.",
+], 520)
+metric(d, 920, 650, "6.52%", "Top1 std", RED)
+metric(d, 1160, 650, "4.91%", "Top2 std", GREEN)
+save(img, 14)
+
+img, d = base("P1 source: walk-forward validation loop", "SOURCE APPENDIX")
+flow(d, 105, 160, ["history before T", "select params", "build portfolio", "score T+1:T+5", "advance T"], 1350, CYAN)
+code_block(d, 100, 300, "scripts/simulate_online_windows.py", """def walk_forward_simulation(pred_df, strategies, *, lookback_days, ...):
+    for current_date in evaluation_dates:
+        history = pred_df[pred_df["date"] < current_date]
+        select_window = history.tail(lookback_days)
+        best_strategy = choose_strategy(select_window, strategies)
+        portfolio = construct_portfolio(pred_df[pred_df["date"] == current_date],
+                                        strategy=best_strategy)
+        score = evaluate_realized_return(portfolio, current_date)""", 700, 360, CYAN)
+code_block(d, 860, 300, "scripts/validate_multiple_methods.py", """DEFAULT_STRATEGIES = [
+    "top1_weight",
+    "confidence_topk",
+    "top2_softmax",
+    "top3_softmax",
+    "proportional_positive_thr0.0",
+]""", 520, 250, ORANGE)
+draw_text(d, (870, 635), "Audit rule: no parameter can be chosen using data after simulated date T.", 24, RED, True, 520)
+save(img, 15)
+
+img, d = base("P2 data engineering: raw row to model row", "DATA ENGINEERING")
+flow(d, 105, 155, ["raw OHLCV", "normalize", "rolling features", "cross-section ranks", "label/infer split"], 1350)
+table(d, 105, 285, [
+    ["Stage", "Example", "Audit check"],
+    ["Raw", "stock_id/date/open/close/high/low/volume/amount", "stock_id stays zero-padded text"],
+    ["Feature", "ret_1, ret_5, volume_ratio_5, volatility, ranks", "no future shift except label columns"],
+    ["Inference T", "2026-04-24 rows have blank future label", "features up to T only"],
+    ["Replay", "T+1 open to T+5 open return after phase", "post-submit evaluation only"],
+], [180, 670, 510], 56)
+code_block(d, 130, 610, "sample processed T rows", """stock_id,date,open,close,ret_1,ret_5,volume_ratio_5,label
+000001,2026-04-24,1327.83,1330.25, 0.0000,-0.0009,-0.1692,
+000002,2026-04-24, 510.28, 503.57,-0.0157,-0.0530, 0.0605,
+000063,2026-04-24, 500.44, 497.84,-0.0128, 0.0297,-0.1778,""", 1260, 150, BLUE)
+draw_text(d, (130, 795), "Caveat: cached processed artifacts may need rebuild before new theme/momentum columns appear.", 20, RED, True, 1200)
+save(img, 16)
+
+img, d = base("P2 source: portfolio-return objective", "SOURCE APPENDIX")
+flow(d, 105, 160, ["pred scores", "top-K", "softmax weights", "future returns", "negative loss"], 1350, ORANGE)
+code_block(d, 100, 300, "src/models/master.py", """def _portfolio_return_loss(pred, target, *, top_k, temperature):
+    k = min(top_k, pred.numel())
+    _, idx = torch.topk(pred, k=k)
+    selected_pred = pred[idx]
+    selected_target = target[idx]
+    weights = torch.softmax(selected_pred / temperature, dim=0)
+    portfolio_return = torch.sum(weights * selected_target)
+    return -portfolio_return""", 660, 330, ORANGE)
+bullets(d, 850, 315, [
+    "Head labels are noisy and extreme.",
+    "Softmax can overreact to small score gaps.",
+    "Direct loss underperformed official MASTER.",
+    "Next: capped labels, downside penalty, multi-seed smoothing, late-stage blending.",
+], 540)
+draw_text(d, (360, 735), "Experiment track, not a production replacement yet.", 28, BLUE, True, 900)
+save(img, 17)
+
+preview_files = sorted(OUT_DIR.glob("slide_*.png"))
+thumb_w, thumb_h = 320, 180
+cols = 4
+rows = (len(preview_files) + cols - 1) // cols
+montage = Image.new("RGB", (cols * thumb_w, rows * (thumb_h + 26)), "white")
+md = ImageDraw.Draw(montage)
+for idx, path in enumerate(preview_files):
+    thumb = Image.open(path).resize((thumb_w, thumb_h))
+    x = (idx % cols) * thumb_w
+    y = (idx // cols) * (thumb_h + 26)
+    montage.paste(thumb, (x, y))
+    md.text((x + 8, y + thumb_h + 5), path.stem, font=font(13), fill=MUTED)
+montage.save(OUT_DIR / "montage.png")
+
+print(f"wrote {len(preview_files)} previews to {OUT_DIR}")
