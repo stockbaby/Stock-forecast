@@ -7,8 +7,8 @@ const OUT = path.join("docs", "code_review_meeting_2026_05_07.pptx");
 const pptx = new pptxgen();
 pptx.layout = "LAYOUT_WIDE";
 pptx.author = "PastoralBabyBoom / Codex";
-pptx.subject = "CSI300 stock forecast code review";
-pptx.title = "Code Review and Model Review";
+pptx.subject = "CSI300 股票预测代码审查";
+pptx.title = "代码审查与模型复盘";
 pptx.company = "PastoralBabyBoom";
 pptx.lang = "zh-CN";
 pptx.theme = {
@@ -36,7 +36,7 @@ const C = {
 function addSlide(title, eyebrow) {
   const slide = pptx.addSlide();
   slide.background = { color: C.white };
-  slide.addText(eyebrow || "CODE REVIEW", {
+  slide.addText(eyebrow || "代码审查", {
     x: 0.55,
     y: 0.28,
     w: 2.4,
@@ -68,7 +68,7 @@ function addSlide(title, eyebrow) {
     h: 0,
     line: { color: C.line, width: 1 },
   });
-  slide.addText("2026-05-07 · CSI300 Competition Review", {
+  slide.addText("2026-05-07 · CSI300 比赛复盘", {
     x: 9.0,
     y: 7.05,
     w: 3.7,
@@ -265,11 +265,11 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
   slide.addShape(pptx.ShapeType.rect, { x: 0, y: 5.55, w: 13.333, h: 1.95, fill: { color: "111827" }, line: { color: "111827" } });
   slide.addShape(pptx.ShapeType.line, { x: 0.8, y: 1.0, w: 3.1, h: 0, line: { color: C.cyan, width: 5 } });
   slide.addText("CSI300 Stock Forecast", { x: 0.78, y: 1.25, w: 10.5, h: 0.55, fontFace: "Microsoft YaHei", fontSize: 16, color: "93C5FD", margin: 0 });
-  slide.addText("Code Review & Model Review", { x: 0.75, y: 1.95, w: 11.4, h: 0.95, fontFace: "Microsoft YaHei", fontSize: 34, bold: true, color: C.white, margin: 0, fit: "shrink" });
+  slide.addText("代码审查与模型复盘", { x: 0.75, y: 1.95, w: 11.4, h: 0.95, fontFace: "Microsoft YaHei", fontSize: 34, bold: true, color: C.white, margin: 0, fit: "shrink" });
   slide.addText("从数据形态、训练目标、组合策略到未来改进方向", { x: 0.78, y: 3.05, w: 8.4, h: 0.36, fontFace: "Microsoft YaHei", fontSize: 14, color: "CBD5E1", margin: 0 });
-  metric(slide, "A-stage replay after fixing latest inference", "0.106689", 0.82, 5.95, 2.35, C.green, "T=2026-04-24");
-  metric(slide, "Original public score", "0.012834", 3.65, 5.95, 2.0, C.orange, "date-aligned replay gap");
-  metric(slide, "Current production result", "002493 · 1.0", 6.25, 5.95, 2.6, C.cyan, "aggressive Top1");
+  metric(slide, "修复 latest inference 后的 A-stage replay", "0.106689", 0.82, 5.95, 2.35, C.green, "T=2026-04-24");
+  metric(slide, "原始公开成绩", "0.012834", 3.65, 5.95, 2.0, C.orange, "日期对齐差距");
+  metric(slide, "当前生产结果", "002493 · 1.0", 6.25, 5.95, 2.6, C.cyan, "aggressive Top1");
   slide.addText("PastoralBabyBoom · 2026-05-07", { x: 9.1, y: 6.65, w: 3.3, h: 0.25, fontFace: "Microsoft YaHei", fontSize: 9, color: "94A3B8", align: "right", margin: 0 });
 }
 
@@ -285,10 +285,10 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
     "MASTER official 仍是当前最可靠的主模型；portfolio-return 直接 loss 初版过拟合。",
     "下一阶段应围绕 latest inference、multi-seed、top2/confidence 兜底和稳健目标函数推进。",
   ], 0.82, 2.55, 7.0, 2.4);
-  metric(slide, "best replay score", "0.106689", 8.55, 2.3, 2.0, C.green);
-  metric(slide, "Top1 validation std", "6.52%", 10.45, 2.3, 1.7, C.red);
-  metric(slide, "processed features", "301", 8.55, 4.3, 1.8, C.blue);
-  metric(slide, "stocks", "300", 10.45, 4.3, 1.3, C.cyan);
+  metric(slide, "最佳 replay 分数", "0.106689", 8.55, 2.3, 2.0, C.green);
+  metric(slide, "Top1 验证 std", "6.52%", 10.45, 2.3, 1.7, C.red);
+  metric(slide, "processed 特征数", "301", 8.55, 4.3, 1.8, C.blue);
+  metric(slide, "股票数", "300", 10.45, 4.3, 1.3, C.cyan);
 }
 
 // 3 Data
@@ -296,14 +296,14 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
   const slide = addSlide("数据长什么样", "DATA SHAPE");
   addTable(slide, [
     [
-      { text: "Dataset", options: { bold: true, fill: { color: "E2E8F0" } } },
-      { text: "Rows", options: { bold: true, fill: { color: "E2E8F0" } } },
-      { text: "Columns", options: { bold: true, fill: { color: "E2E8F0" } } },
-      { text: "Coverage", options: { bold: true, fill: { color: "E2E8F0" } } },
+      { text: "数据集", options: { bold: true, fill: { color: "E2E8F0" } } },
+      { text: "行数", options: { bold: true, fill: { color: "E2E8F0" } } },
+      { text: "列数", options: { bold: true, fill: { color: "E2E8F0" } } },
+      { text: "覆盖范围", options: { bold: true, fill: { color: "E2E8F0" } } },
     ],
     ["raw stock_data.csv", "723,269", "12", "300 stocks · 2,747 dates"],
     ["processed master dataset", "723,269", "301", "2015-01-05 → 2026-04-24"],
-    ["hs300 stock list", "300", "3", "component universe"],
+    ["hs300 stock list", "300", "3", "成分股池"],
   ], 0.78, 1.55, 6.7, 1.65, [2.1, 1.1, 1.1, 2.4]);
   addText(slide, "核心字段", 0.85, 3.55, 1.3, 0.25, { size: 11, bold: true, color: C.blue, margin: 0 });
   bulletList(slide, [
@@ -332,7 +332,7 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
   slide.addShape(pptx.ShapeType.roundRect, { x: 7.65, y: 3.0, w: 4.65, h: 1.85, rectRadius: 0.08, fill: { color: "FFF7ED" }, line: { color: "FDBA74" } });
   addText(slide, "之前的关键 bug", 7.95, 3.28, 2.1, 0.3, { size: 13, bold: true, color: C.orange, margin: 0 });
   addText(slide, "submission 取了 valid_pred_df.max(date)=2026-04-20；真正线上需要 T=2026-04-24 无 label 截面。", 7.95, 3.8, 3.95, 0.62, { size: 10.5, color: C.ink, margin: 0.02 });
-  metric(slide, "after fixing", "latest_inference", 8.0, 5.25, 2.6, C.green, "metrics now record inference_date");
+  metric(slide, "修复后", "latest_inference", 8.0, 5.25, 2.6, C.green, "metrics 记录 inference_date");
 }
 
 // 5 Model principles
@@ -359,9 +359,9 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
 
 // 6 Results
 {
-  const slide = addSlide("多方法验证：谁更稳，谁更冲", "RESULTS");
+  const slide = addSlide("多方法验证：谁更稳，谁更冲", "结果");
   addTable(slide, [
-    [{ text: "Method", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Strategy", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Mean", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Std", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Latest A", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    [{ text: "方法", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "策略", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Mean", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Std", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Latest A", options: { bold: true, fill: { color: "E2E8F0" } } }],
     ["master_multiseed", "top2_softmax", "0.02450", "0.04912", "n/a"],
     ["master_official", "top2_softmax", "0.02145", "0.04913", "0.04964"],
     ["master_official", "top1_weight", "0.02130", "0.06522", "0.10669"],
@@ -378,11 +378,11 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
 
 // 7 Risk
 {
-  const slide = addSlide("Top1 满仓：收益最大，但不是默认安全策略", "RISK REVIEW");
+  const slide = addSlide("Top1 满仓：收益最大，但不是默认安全策略", "风险审查");
   metric(slide, "Top1 mean", "2.13%", 0.9, 1.55, 1.5, C.green);
   metric(slide, "Top1 std", "6.52%", 2.75, 1.55, 1.5, C.red);
-  metric(slide, "negative days", "37.36%", 4.6, 1.55, 1.7, C.orange);
-  metric(slide, "worst day", "-15.97%", 6.65, 1.55, 1.7, C.red);
+  metric(slide, "负收益日比例", "37.36%", 4.6, 1.55, 1.7, C.orange);
+  metric(slide, "最差单日", "-15.97%", 6.65, 1.55, 1.7, C.red);
   addText(slide, "兜底策略建议", 0.9, 3.2, 1.7, 0.28, { size: 14, bold: true, color: C.blue, margin: 0 });
   bulletList(slide, [
     "冲榜版：top1_weight，只在强信号或明确冒险时使用。",
@@ -391,16 +391,16 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
     "未来应加入 regime-aware concentration gate。",
   ], 0.95, 3.65, 6.3, 2.1);
   addTable(slide, [
-    [{ text: "Policy", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Latest A", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Role", options: { bold: true, fill: { color: "E2E8F0" } } }],
-    ["Top1", "0.10669", "aggressive"],
-    ["Confidence", "0.06279", "balanced"],
-    ["Top2", "0.04964", "fallback"],
+    [{ text: "策略", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Latest A", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "定位", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    ["Top1", "0.10669", "冲榜"],
+    ["Confidence", "0.06279", "折中"],
+    ["Top2", "0.04964", "兜底"],
   ], 8.0, 3.55, 3.8, 1.4, [1.25, 1.0, 1.3]);
 }
 
 // 8 Portfolio objective
 {
-  const slide = addSlide("训练目标对齐：方向正确，第一版实现失败", "OBJECTIVE REVIEW");
+  const slide = addSlide("训练目标对齐：方向正确，第一版实现失败", "目标审查");
   slide.addText("目标函数应该更像组合收益最大化，而不是只看全局 RankIC。", {
     x: 0.85, y: 1.48, w: 9.5, h: 0.45, fontFace: "Microsoft YaHei", fontSize: 20, bold: true, color: C.ink, margin: 0,
   });
@@ -411,7 +411,7 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
     "但当前实现对头部噪声非常敏感",
   ], 0.95, 2.75, 4.8, 1.45);
   addTable(slide, [
-    [{ text: "Method", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Strategy", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Mean", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Latest A", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    [{ text: "方法", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "策略", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Mean", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Latest A", options: { bold: true, fill: { color: "E2E8F0" } } }],
     ["official", "top2", "0.02145", "0.04964"],
     ["portfolio-loss", "top2", "0.00451", "-0.00955"],
     ["portfolio-loss", "top1", "0.00271", "-0.05155"],
@@ -422,7 +422,7 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
 
 // 9 Limitations
 {
-  const slide = addSlide("局限性：现在最需要 code review 的地方", "LIMITATIONS");
+  const slide = addSlide("局限性：现在最需要代码审查的地方", "局限性");
   const items = [
     ["Date alignment", "每个阶段必须断言 latest prediction date == configured T"],
     ["Feature availability", "hs300_index.csv 当前缺失，市场特征需明确 fallback"],
@@ -435,21 +435,21 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
     tag(slide, it[0], 0.85, y, 2.2, [C.red, C.orange, C.blue, C.cyan, C.green][i]);
     addText(slide, it[1], 3.35, y + 0.06, 7.8, 0.24, { size: 11, color: C.ink, margin: 0 });
   });
-  addText(slide, "Review stance", 0.95, 6.08, 1.25, 0.2, { size: 9.5, bold: true, color: C.muted, margin: 0 });
+  addText(slide, "审查立场", 0.95, 6.08, 1.25, 0.2, { size: 9.5, bold: true, color: C.muted, margin: 0 });
   addText(slide, "先保护线上正确性，再追模型复杂度。", 2.25, 6.05, 3.8, 0.25, { size: 10.5, color: C.ink, margin: 0 });
 }
 
 // 10 Code map
 {
-  const slide = addSlide("代码审查地图：先看这些文件", "CODE REVIEW MAP");
+  const slide = addSlide("代码审查地图：先看这些文件", "代码地图");
   addTable(slide, [
-    [{ text: "Area", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Files", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Review question", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    [{ text: "模块", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "文件", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "审查问题", options: { bold: true, fill: { color: "E2E8F0" } } }],
     ["Data", "src/training/dataset_builder.py\nsrc/models/deep_sequence.py", "T 日无 label 推理是否始终正确？"],
     ["Models", "src/models/master.py\nsrc/models/stockmixer.py", "目标函数和归一化是否与线上一致？"],
     ["Portfolio", "src/portfolio/construct.py", "Top1 / Top2 / confidence 策略是否可控？"],
     ["Validation", "scripts/simulate_online_windows.py\nscripts/validate_multiple_methods.py", "是否足够防止参数过拟合？"],
   ], 0.75, 1.45, 11.7, 3.9, [1.45, 4.2, 5.65]);
-  addText(slide, "Meeting decision", 0.85, 5.85, 1.6, 0.22, { size: 10.5, bold: true, color: C.blue, margin: 0 });
+  addText(slide, "会议决策", 0.85, 5.85, 1.6, 0.22, { size: 10.5, bold: true, color: C.blue, margin: 0 });
   addText(slide, "生产默认到底选 aggressive Top1，还是 top2/confidence fallback？需要明确策略档位。", 2.55, 5.82, 7.3, 0.28, { size: 11, color: C.ink, margin: 0 });
 }
 
@@ -462,41 +462,41 @@ function smallFlow(slide, items, x, y, w, color = C.blue) {
     "生产策略分 aggressive / fallback 两档",
     "完成 multi-seed MASTER latest inference",
   ], 0.95, 1.95, 3.35, 1.5);
-  addText(slide, "Next experiments", 4.95, 1.55, 1.8, 0.25, { size: 13, bold: true, color: C.green, margin: 0 });
+  addText(slide, "下一批实验", 4.95, 1.55, 1.8, 0.25, { size: 13, bold: true, color: C.green, margin: 0 });
   bulletList(slide, [
     "master_multiseed + top2/confidence",
     "downside-penalized portfolio surrogate",
     "regime-aware concentration gate",
   ], 5.05, 1.95, 3.45, 1.5);
-  addText(slide, "Longer term", 9.0, 1.55, 1.5, 0.25, { size: 13, bold: true, color: C.orange, margin: 0 });
+  addText(slide, "长期方向", 9.0, 1.55, 1.5, 0.25, { size: 13, bold: true, color: C.orange, margin: 0 });
   bulletList(slide, [
     "验证主题/动量特征在新阶段是否稳定",
     "relation gains 经 walk-forward 稳定后再考虑 GNN/HIST",
     "形成提交前自动 replay/validation checklist",
   ], 9.1, 1.95, 3.4, 1.7);
   slide.addShape(pptx.ShapeType.line, { x: 1.0, y: 5.45, w: 10.9, h: 0, line: { color: C.line, width: 1.5 } });
-  addText(slide, "North star", 0.95, 5.9, 1.3, 0.25, { size: 10.5, bold: true, color: C.muted, margin: 0 });
+  addText(slide, "核心准则", 0.95, 5.9, 1.3, 0.25, { size: 10.5, bold: true, color: C.muted, margin: 0 });
   addText(slide, "每个新阶段：确认 T 日推理正确 → 多方法 walk-forward → 根据风险档位生成提交。", 2.3, 5.83, 8.6, 0.35, { size: 15, bold: true, color: C.ink, margin: 0 });
 }
 
 // 12 Review priorities
 {
-  const slide = addSlide("Code review priorities: inspect by failure impact", "SOURCE APPENDIX");
+  const slide = addSlide("代码审查优先级：按失败影响排序", "源码附录");
   addTable(slide, [
-    [{ text: "Priority", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Area", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Source files", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Meeting question", options: { bold: true, fill: { color: "E2E8F0" } } }],
-    ["P0", "Latest T-date inference", "src/models/deep_sequence.py\nscripts/train_master_baseline.py", "Can result.csv ever be generated from the last labeled validation day again?"],
-    ["P1", "Portfolio risk gate", "src/portfolio/construct.py", "When should Top1 be allowed, capped, or downgraded to Top2/confidence?"],
-    ["P1", "Walk-forward validation", "scripts/simulate_online_windows.py\nscripts/validate_multiple_methods.py", "Are parameters selected only from information available before T?"],
-    ["P2", "Training objective", "src/models/master.py", "How do we align loss with final portfolio return without chasing noisy extremes?"],
-    ["P2", "Data engineering", "src/training/dataset_builder.py\nsrc/features/*.py", "Which columns are guaranteed, optional, or cached from previous processed artifacts?"],
+    [{ text: "优先级", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "审查区域", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "源码文件", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "会议问题", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    ["P0", "Latest T-date inference", "src/models/deep_sequence.py\nscripts/train_master_baseline.py", "result.csv 是否还可能来自最后一个有 label 验证日？"],
+    ["P1", "Portfolio risk gate", "src/portfolio/construct.py", "什么时候允许 Top1，什么时候 cap 或降级到 Top2/confidence？"],
+    ["P1", "Walk-forward validation", "scripts/simulate_online_windows.py\nscripts/validate_multiple_methods.py", "参数是否只用 T 之前可见的信息选择？"],
+    ["P2", "Training objective", "src/models/master.py", "如何让 loss 对齐最终组合收益，同时不追极端噪声？"],
+    ["P2", "数据工程", "src/training/dataset_builder.py\nsrc/features/*.py", "哪些列是 guaranteed、optional，哪些来自 cached artifact？"],
   ], 0.7, 1.4, 11.95, 4.45, [0.8, 2.0, 3.5, 5.25]);
-  addText(slide, "Review stance: protect online correctness first; increase modeling complexity only after the submission loop is reproducible.", 0.85, 6.35, 10.8, 0.3, { size: 13, bold: true, color: C.blue, margin: 0 });
+  addText(slide, "审查立场：先保护线上正确性；只有提交闭环可复现之后，再增加模型复杂度。", 0.85, 6.35, 10.8, 0.3, { size: 13, bold: true, color: C.blue, margin: 0 });
 }
 
 // 13 Source: latest inference
 {
-  const slide = addSlide("P0 source: latest T-date inference", "SOURCE APPENDIX");
-  smallFlow(slide, ["processed data", "labeled train", "unlabeled T", "latest scores", "result.csv"], 0.85, 1.35, 11.4, C.blue);
+  const slide = addSlide("P0 源码：latest T-date inference", "源码附录");
+  smallFlow(slide, ["processed data", "有 label 训练", "无 label T", "latest scores", "result.csv"], 0.85, 1.35, 11.4, C.blue);
   codeBox(slide, "src/models/deep_sequence.py", `def build_prediction_sequences(df, feature_cols, target_date, ...):
     """Build model input sequences ending at target_date
     for stocks without labels."""
@@ -513,12 +513,12 @@ infer_x, infer_meta = build_prediction_sequences(
 )
 dataset.x_infer = infer_x
 dataset.infer_meta = infer_meta`, 6.85, 2.35, 5.55, 3.25, C.green);
-  tag(slide, "Must assert latest_pred.date == configured T before submission", 3.15, 6.25, 5.35, C.red);
+  tag(slide, "提交前必须断言 latest_pred.date == configured T", 3.15, 6.25, 5.35, C.red);
 }
 
 // 14 Source: portfolio risk
 {
-  const slide = addSlide("P1 source: confidence-aware portfolio allocation", "SOURCE APPENDIX");
+  const slide = addSlide("P1 源码：confidence-aware portfolio allocation", "源码附录");
   smallFlow(slide, ["scores", "rank", "margin/std", "concentration", "weights"], 0.85, 1.35, 11.4, C.green);
   codeBox(slide, "src/portfolio/construct.py", `elif strategy == "confidence_topk":
     top = df.head(max(1, min(top_k, len(df)))).copy()
@@ -530,12 +530,12 @@ dataset.infer_meta = infer_meta`, 6.85, 2.35, 5.55, 3.25, C.green);
         margin=margin,
         score_std=float(std[0]) if std is not None else 0.0,
     )`, 0.85, 2.3, 6.25, 3.55, C.green);
-  addText(slide, "Review decisions", 7.55, 2.35, 1.8, 0.25, { size: 13, bold: true, color: C.blue, margin: 0 });
+  addText(slide, "审查决策", 7.55, 2.35, 1.8, 0.25, { size: 13, bold: true, color: C.blue, margin: 0 });
   bulletList(slide, [
-    "Production default: top1, top2, or confidence?",
-    "Should multi-seed score_std cap single-stock weight?",
-    "Do we need our own max single-stock cap?",
-    "Should each result save margin/std/fallback reason?",
+    "生产默认：top1、top2 还是 confidence？",
+    "multi-seed 的 score_std 是否限制单股权重？",
+    "是否需要内部 max single-stock cap？",
+    "每次 result 是否保存 margin/std/fallback reason？",
   ], 7.6, 2.8, 4.35, 2.0);
   metric(slide, "Top1 std", "6.52%", 7.6, 5.25, 1.45, C.red);
   metric(slide, "Top2 std", "4.91%", 9.55, 5.25, 1.45, C.green);
@@ -543,8 +543,8 @@ dataset.infer_meta = infer_meta`, 6.85, 2.35, 5.55, 3.25, C.green);
 
 // 15 Source: validation
 {
-  const slide = addSlide("P1 source: walk-forward validation loop", "SOURCE APPENDIX");
-  smallFlow(slide, ["history before T", "select params", "build portfolio", "score T+1:T+5", "advance T"], 0.85, 1.35, 11.4, C.cyan);
+  const slide = addSlide("P1 源码：walk-forward validation loop", "源码附录");
+  smallFlow(slide, ["T 前历史", "选择参数", "构造组合", "评分 T+1:T+5", "推进 T"], 0.85, 1.35, 11.4, C.cyan);
   codeBox(slide, "scripts/simulate_online_windows.py", `def walk_forward_simulation(pred_df, strategies, *, lookback_days, ...):
     for current_date in evaluation_dates:
         history = pred_df[pred_df["date"] < current_date]
@@ -559,30 +559,30 @@ dataset.infer_meta = infer_meta`, 6.85, 2.35, 5.55, 3.25, C.green);
     "top3_softmax",
     "proportional_positive_thr0.0",
 ]`, 7.15, 2.3, 4.9, 2.15, C.orange);
-  addText(slide, "Audit rule: no parameter can be chosen using data after the simulated submission date T.", 7.2, 5.05, 4.5, 0.5, { size: 13, bold: true, color: C.red, margin: 0 });
+  addText(slide, "审查规则：任何参数都不能使用模拟提交日 T 之后的数据选择。", 7.2, 5.05, 4.5, 0.5, { size: 13, bold: true, color: C.red, margin: 0 });
 }
 
 // 16 Data engineering example
 {
-  const slide = addSlide("P2 data engineering: raw row to model row", "DATA ENGINEERING");
+  const slide = addSlide("P2 数据工程：raw row 到 model row", "数据工程");
   smallFlow(slide, ["raw OHLCV", "normalize", "rolling features", "cross-section ranks", "label/infer split"], 0.85, 1.3, 11.4, C.blue);
   addTable(slide, [
-    [{ text: "Stage", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Example", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "Audit check", options: { bold: true, fill: { color: "E2E8F0" } } }],
-    ["Raw", "stock_id/date/open/close/high/low/volume/amount", "stock_id must remain zero-padded text"],
-    ["Feature", "ret_1, ret_5, volume_ratio_5, volatility, ranks", "no future shift except explicit label columns"],
-    ["Inference T", "2026-04-24 rows have blank future label", "features up to T only"],
-    ["Replay", "T+1 open to T+5 open return after phase", "used only for post-submit evaluation"],
+    [{ text: "阶段", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "样例", options: { bold: true, fill: { color: "E2E8F0" } } }, { text: "审计点", options: { bold: true, fill: { color: "E2E8F0" } } }],
+    ["Raw", "stock_id/date/open/close/high/low/volume/amount", "stock_id 必须保持 zero-padded text"],
+    ["Feature", "ret_1, ret_5, volume_ratio_5, volatility, ranks", "除显式 label 列外不能 future shift"],
+    ["Inference T", "2026-04-24 rows 的未来 label 为空", "features 只能到 T"],
+    ["Replay", "阶段结束后计算 T+1 open 到 T+5 open return", "只用于赛后评估"],
   ], 0.85, 2.25, 11.3, 2.35, [1.3, 5.2, 4.8]);
-  codeBox(slide, "sample processed T rows", `stock_id,date,open,close,ret_1,ret_5,volume_ratio_5,label
+  codeBox(slide, "processed T rows 样例", `stock_id,date,open,close,ret_1,ret_5,volume_ratio_5,label
 000001,2026-04-24,1327.83,1330.25, 0.0000,-0.0009,-0.1692,
 000002,2026-04-24, 510.28, 503.57,-0.0157,-0.0530, 0.0605,
 000063,2026-04-24, 500.44, 497.84,-0.0128, 0.0297,-0.1778,`, 1.0, 5.15, 10.7, 1.3, C.blue);
-  addText(slide, "Caveat: theme/momentum code can exist while the cached processed artifact still needs a rebuild before those columns appear.", 1.0, 6.72, 10.2, 0.25, { size: 10, color: C.red, bold: true, margin: 0 });
+  addText(slide, "Caveat：theme/momentum 代码存在，不代表 cached processed artifact 已重建出这些列。", 1.0, 6.72, 10.2, 0.25, { size: 10, color: C.red, bold: true, margin: 0 });
 }
 
 // 17 Source: objective
 {
-  const slide = addSlide("P2 source: portfolio-return objective", "SOURCE APPENDIX");
+  const slide = addSlide("P2 源码：portfolio-return objective", "源码附录");
   smallFlow(slide, ["pred scores", "top-K", "softmax weights", "future returns", "negative loss"], 0.85, 1.35, 11.4, C.orange);
   codeBox(slide, "src/models/master.py", `def _portfolio_return_loss(pred, target, *, top_k, temperature):
     k = min(top_k, pred.numel())
@@ -592,14 +592,14 @@ dataset.infer_meta = infer_meta`, 6.85, 2.35, 5.55, 3.25, C.green);
     weights = torch.softmax(selected_pred / temperature, dim=0)
     portfolio_return = torch.sum(weights * selected_target)
     return -portfolio_return`, 0.85, 2.3, 5.7, 2.75, C.orange);
-  addText(slide, "Why v1 failed", 7.05, 2.35, 1.6, 0.24, { size: 13, bold: true, color: C.red, margin: 0 });
+  addText(slide, "v1 失败原因", 7.05, 2.35, 1.6, 0.24, { size: 13, bold: true, color: C.red, margin: 0 });
   bulletList(slide, [
-    "Head labels are noisy and extreme.",
-    "Softmax can overreact to small score gaps.",
-    "Direct loss underperformed official MASTER in replay.",
-    "Next version should add capped labels, downside penalty, multi-seed smoothing, and late-stage blending.",
+    "头部 label 噪声和极端值很强。",
+    "Softmax 容易对很小的 score gap 过度反应。",
+    "Direct loss 在 replay 中弱于 official MASTER。",
+    "下一版需要 capped labels、downside penalty、multi-seed smoothing 和 late-stage blending。",
   ], 7.1, 2.8, 4.6, 2.1);
-  addText(slide, "This is an experiment track, not a production replacement yet.", 2.9, 6.2, 6.4, 0.3, { size: 14, bold: true, color: C.blue, margin: 0 });
+  addText(slide, "这是实验方向，还不是生产替代方案。", 2.9, 6.2, 6.4, 0.3, { size: 14, bold: true, color: C.blue, margin: 0 });
 }
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
