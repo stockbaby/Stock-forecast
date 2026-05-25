@@ -1,0 +1,67 @@
+seed: 42
+data:
+  raw_dir: data/raw_train_20260517
+  processed_path: data/processed/model_dataset_holdout_20260517_alpha.csv
+  market_index_path: data/raw_train_20260517/hs300_index.csv
+  industry_map_path: data/raw_train_20260517/hs300_stock_list.csv
+  reuse_processed: true
+  benchmark_end_date: '2026-05-15'
+features:
+  lookback_windows:
+  - 3
+  - 5
+  - 10
+  - 20
+  - 30
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+training:
+  valid_days: 90
+  recent_train_days: 90
+  top_k: 5
+  max_weight_sum: 1.0
+portfolio:
+  strategies:
+  - top1_weight
+  - confidence_topk
+  - top2_softmax
+  - top3_softmax
+  - proportional_positive_thr0.0
+  - equal_weight
+  temperature: 0.8
+deep:
+  lookback: 20
+  hidden_dim: 64
+  mixer_dim: 128
+  temporal_dim: 48
+  dropout: 0.12
+  batch_size: 768
+  epochs: 3
+  learning_rate: 0.0008
+  weight_decay: 0.0001
+  early_stopping_patience: 2
+  lr_decay_factor: 0.5
+  min_lr: 1.0e-05
+  recent_weight_power: 1.6
+  regression_weight: 0.45
+  rank_weight: 0.15
+  corr_weight: 0.05
+  portfolio_return_weight: 0.35
+  portfolio_temperature: 0.3
+  portfolio_top_k: 5
+  label_clip: 0.18
+  patch_sizes:
+  - 5
+  - 10
+  - 20
+  seeds:
+  - 42
+output:
+  metrics_path: outputs\holdout_20260517\stockmixer_alpha_fast_portfolio_return_metrics.json
+  prediction_path: outputs\holdout_20260517\stockmixer_alpha_fast_portfolio_return_predictions.csv
+  latest_prediction_path: outputs\holdout_20260517\stockmixer_alpha_fast_portfolio_return_latest_predictions.csv
+  submission_path: outputs\holdout_20260517\stockmixer_alpha_fast_portfolio_return_submission.csv
+  inference_date: '2026-05-15'

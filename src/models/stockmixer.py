@@ -38,6 +38,9 @@ class StockMixerTrainConfig:
     portfolio_return_weight: float = 0.0
     portfolio_temperature: float = 0.25
     portfolio_top_k: int = 5
+    top_hit_weight: float = 0.0
+    top_hit_k: int = 2
+    top_hit_temperature: float = 0.25
     label_clip: float = 0.2
     patch_sizes: tuple[int, ...] = (5, 10, 20, 30)
     seed: int = 42
@@ -216,6 +219,18 @@ def _portfolio_return_loss(pred, target, config: StockMixerTrainConfig, torch_mo
     weights = torch_module.softmax(top_scores / max(float(config.portfolio_temperature), 1e-3), dim=0)
     portfolio_return = (weights * target[top_indices]).sum()
     return -portfolio_return
+
+
+def _top_hit_loss(pred, target, config: StockMixerTrainConfig, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+    k = min(int(config.top_hit_k), int(pred.numel()))
+    if k <= 0:
+        return pred.new_tensor(0.0)
+    _, true_top_indices = torch_module.topk(target, k)
+    pred_probs = torch_module.softmax(pred / max(float(config.top_hit_temperature), 1e-3), dim=0)
+    hit_mass = pred_probs[true_top_indices].sum().clamp(min=1e-12)
+    return -torch_module.log(hit_mass)
 
 
 def _corr_loss(pred, target, torch_module) -> object:
@@ -425,12 +440,14 @@ def train_stockmixer_regressor(
             corr_loss = _corr_loss(preds, y_batch, torch)
             official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
             portfolio_return_loss = _portfolio_return_loss(preds, y_batch, config, torch)
+            top_hit_loss = _top_hit_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
                 + config.rank_weight * rank_loss
                 + config.corr_weight * corr_loss
                 + config.official_rank_weight * official_rank_loss
                 + config.portfolio_return_weight * portfolio_return_loss
+                + config.top_hit_weight * top_hit_loss
             )
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)

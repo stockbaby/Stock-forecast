@@ -28,6 +28,8 @@ class TrainConfig:
     valid_days: int | None = None
     portfolio_strategies: list[str] | None = None
     portfolio_temperature: float = 1.0
+    inference_date: str | None = None
+    latest_prediction_path: str | None = None
 
 
 def _default_time_split(
@@ -50,28 +52,30 @@ def _default_time_split(
             valid_mask &= df["date"] >= pd.to_datetime(valid_start)
         if valid_end:
             valid_mask &= df["date"] <= pd.to_datetime(valid_end)
-        train_df = df[train_mask].copy()
-        valid_df = df[valid_mask].copy()
+        train_df = df[train_mask]
+        valid_df = df[valid_mask]
         if len(train_df) > 0 and len(valid_df) > 0:
             return train_df, valid_df
 
     if valid_days is not None and valid_days > 0:
         split_idx = max(len(unique_dates) - valid_days, 1)
         cutoff = unique_dates[split_idx]
-        train_df = df[df["date"] < cutoff].copy()
-        valid_df = df[df["date"] >= cutoff].copy()
+        train_df = df[df["date"] < cutoff]
+        valid_df = df[df["date"] >= cutoff]
         if len(train_df) > 0 and len(valid_df) > 0:
             return train_df, valid_df
 
     cutoff = unique_dates[int(len(unique_dates) * 0.8)]
-    train_df = df[df["date"] < cutoff].copy()
-    valid_df = df[df["date"] >= cutoff].copy()
+    train_df = df[df["date"] < cutoff]
+    valid_df = df[df["date"] >= cutoff]
     return train_df, valid_df
 
 
 def run_training(config: TrainConfig) -> dict:
     df = pd.read_csv(config.processed_path, dtype={"stock_id": str})
     df["date"] = pd.to_datetime(df["date"])
+    for col in df.select_dtypes(include=["float64"]).columns:
+        df[col] = df[col].astype("float32")
 
     feature_columns = [
         col
@@ -79,7 +83,7 @@ def run_training(config: TrainConfig) -> dict:
         if col not in {"date", "stock_id", config.label_name}
         and not col.startswith("Unnamed:")
     ]
-    model_df = df.dropna(subset=[config.label_name]).copy()
+    model_df = df[df[config.label_name].notna()]
     train_df, valid_df = _default_time_split(
         model_df,
         train_end=config.train_end,
@@ -91,6 +95,13 @@ def run_training(config: TrainConfig) -> dict:
     fitted = fit_baseline_model(train_df, feature_columns, config.label_name, model_type=config.model_type)
     valid_df = valid_df.copy()
     valid_df["score"] = predict_scores(fitted, valid_df)
+
+    infer_df: pd.DataFrame | None = None
+    if config.inference_date:
+        inference_date = pd.Timestamp(config.inference_date)
+        infer_df = df[df["date"] == inference_date].copy()
+        if not infer_df.empty:
+            infer_df["score"] = predict_scores(fitted, infer_df)
 
     metrics = {
         "model_name": fitted.name,
@@ -124,8 +135,21 @@ def run_training(config: TrainConfig) -> dict:
 
     save_dataframe(valid_df, config.prediction_path)
 
-    latest_date = valid_df["date"].max()
-    latest_df = valid_df[valid_df["date"] == latest_date].copy()
+    if infer_df is not None and not infer_df.empty:
+        if config.latest_prediction_path:
+            save_dataframe(infer_df[["stock_id", "date", "score"]], config.latest_prediction_path)
+        latest_df = infer_df.copy()
+        metrics["submission_source"] = "latest_inference"
+        metrics["submission_date"] = str(pd.Timestamp(latest_df["date"].max()).date())
+    else:
+        if config.inference_date:
+            raise ValueError(f"No latest inference rows found for configured T={config.inference_date}.")
+        latest_date = valid_df["date"].max()
+        latest_df = valid_df[valid_df["date"] == latest_date].copy()
+        metrics["submission_source"] = "validation_fallback"
+        metrics["submission_date"] = str(pd.Timestamp(latest_date).date())
+    if config.inference_date:
+        assert_prediction_date(latest_df, config.inference_date, "submission source prediction")
     submission = build_top_k_submission(
         latest_df,
         score_col="score",
@@ -163,3 +187,20 @@ def validate_submission(submission: pd.DataFrame, top_k: int, max_weight_sum: fl
         raise ValueError(f"Submission weight sum {weight_sum:.6f} exceeds limit {max_weight_sum}.")
     if (submission["weight"] < 0).any():
         raise ValueError("Submission contains negative weights.")
+
+
+def assert_prediction_date(frame: pd.DataFrame, expected_date: str | pd.Timestamp, context: str = "prediction") -> None:
+    if "date" not in frame.columns:
+        raise ValueError(f"{context} missing date column; cannot verify T-date alignment.")
+    if frame.empty:
+        raise ValueError(f"{context} is empty; cannot verify T-date alignment.")
+    expected = pd.Timestamp(expected_date).normalize()
+    dates = pd.to_datetime(frame["date"]).dropna().dt.normalize().drop_duplicates()
+    if len(dates) != 1:
+        values = [str(pd.Timestamp(value).date()) for value in sorted(dates.tolist())]
+        raise ValueError(f"{context} must contain exactly one prediction date, got {values}.")
+    actual = pd.Timestamp(dates.iloc[0]).normalize()
+    if actual != expected:
+        raise ValueError(
+            f"{context} date mismatch: latest_date={actual.date()} expected_unlabeled_T={expected.date()}."
+        )

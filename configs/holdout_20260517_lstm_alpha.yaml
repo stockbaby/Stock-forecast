@@ -1,0 +1,44 @@
+seed: 42
+data:
+  raw_dir: data/raw_train_20260517
+  processed_path: data/processed/model_dataset_holdout_20260517_alpha.csv
+  market_index_path: data/raw_train_20260517/hs300_index.csv
+  benchmark_end_date: '2026-05-15'
+  reuse_processed: true
+features:
+  lookback_windows:
+  - 3
+  - 5
+  - 10
+  - 20
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+training:
+  valid_days: 120
+  top_k: 5
+  max_weight_sum: 1.0
+  recent_train_days: 90
+portfolio:
+  strategies:
+  - proportional_positive
+  - equal_weight
+  - softmax
+  - positive_only
+  temperature: 1.0
+deep:
+  lookback: 20
+  hidden_size: 64
+  num_layers: 1
+  dropout: 0.0
+  batch_size: 256
+  epochs: 8
+  learning_rate: 0.001
+output:
+  metrics_path: outputs\holdout_20260517\lstm_alpha_metrics.json
+  prediction_path: outputs\holdout_20260517\lstm_alpha_predictions.csv
+  submission_path: outputs\holdout_20260517\lstm_alpha_submission.csv
+  latest_prediction_path: outputs\holdout_20260517\lstm_alpha_latest_predictions.csv
+  inference_date: '2026-05-15'

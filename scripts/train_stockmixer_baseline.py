@@ -15,7 +15,7 @@ from src.models.deep_sequence import build_lstm_sequences, build_prediction_sequ
 from src.models.stockmixer import StockMixerTrainConfig, train_stockmixer_regressor
 from src.portfolio.construct import build_top_k_submission, select_best_portfolio_strategy
 from src.training.dataset_builder import DatasetBuildConfig, build_model_dataset
-from src.training.metrics import precision_at_k, rank_ic, top_k_portfolio_return
+from src.training.metrics import precision_at_k, rank_ic, top_hit_rate, top_k_portfolio_return
 from src.training.train_baseline import _default_time_split, save_dataframe, validate_submission
 from src.utils.config import load_yaml_config
 
@@ -43,6 +43,8 @@ def main() -> None:
     else:
         df = build_model_dataset(build_cfg)
     df["date"] = pd.to_datetime(df["date"])
+    for col in df.select_dtypes(include=["float64"]).columns:
+        df[col] = df[col].astype("float32")
 
     feature_columns = [
         col
@@ -51,7 +53,7 @@ def main() -> None:
         and not col.startswith("Unnamed:")
         and pd.api.types.is_numeric_dtype(df[col])
     ]
-    model_df = df.dropna(subset=[cfg["label"]["name"]]).copy()
+    model_df = df[df[cfg["label"]["name"]].notna()]
     train_df, valid_df = _default_time_split(model_df, valid_days=cfg["training"].get("valid_days"))
     recent_train_days = cfg["training"].get("recent_train_days")
     if recent_train_days:
@@ -73,8 +75,9 @@ def main() -> None:
         or df["date"].max()
     )
     inference_date = pd.Timestamp(inference_date_value)
+    infer_source_df = df[df["date"] <= inference_date].groupby("stock_id", group_keys=False).tail(cfg["deep"]["lookback"])
     x_infer, infer_meta = build_prediction_sequences(
-        df=df,
+        df=infer_source_df,
         feature_columns=feature_columns,
         lookback=cfg["deep"]["lookback"],
         target_dates=[inference_date],
@@ -105,6 +108,9 @@ def main() -> None:
         portfolio_return_weight=cfg["deep"].get("portfolio_return_weight", 0.0),
         portfolio_temperature=cfg["deep"].get("portfolio_temperature", 0.25),
         portfolio_top_k=cfg["deep"].get("portfolio_top_k", cfg["training"]["top_k"]),
+        top_hit_weight=cfg["deep"].get("top_hit_weight", 0.0),
+        top_hit_k=cfg["deep"].get("top_hit_k", 2),
+        top_hit_temperature=cfg["deep"].get("top_hit_temperature", 0.25),
         label_clip=cfg["deep"].get("label_clip", 0.2),
         patch_sizes=tuple(cfg["deep"].get("patch_sizes", [5, 10, 20, 30])),
     )
@@ -158,6 +164,8 @@ def main() -> None:
         "seeds": cfg["deep"].get("seeds", [cfg.get("seed", 42)]),
         "rank_ic": rank_ic(eval_df, cfg["label"]["name"], "score"),
         "precision_at_k": precision_at_k(eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]),
+        "top1_hit_rate": top_hit_rate(eval_df, cfg["label"]["name"], "score", true_top_k=1, pred_top_k=1),
+        "top2_hit_rate": top_hit_rate(eval_df, cfg["label"]["name"], "score", true_top_k=2, pred_top_k=2),
         "top_k_portfolio_return": top_k_portfolio_return(
             eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]
         ),

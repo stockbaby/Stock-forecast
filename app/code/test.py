@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -36,6 +37,22 @@ def validate_result(path: Path) -> None:
         raise ValueError("negative weights are not allowed")
 
 
+def validate_result_metadata(path: Path) -> dict:
+    metadata_path = path.with_suffix(".metadata.json")
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"Missing {metadata_path.name}; run train.py to generate T-date metadata.")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if metadata.get("submission_source") != "latest_inference":
+        raise ValueError(f"result.csv must come from latest_inference, got {metadata.get('submission_source')!r}")
+    expected_date = metadata.get("expected_inference_date")
+    submission_date = metadata.get("submission_date")
+    if expected_date and submission_date != expected_date:
+        raise ValueError(
+            f"result.csv date mismatch: submission_date={submission_date} expected_unlabeled_T={expected_date}"
+        )
+    return metadata
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Official app/ inference entrypoint.")
     parser.add_argument(
@@ -61,9 +78,11 @@ def main() -> None:
             raise FileNotFoundError("Missing model/result.csv. Run train.sh before test.sh.")
     final_output = Path(args.final_output)
     final_output.parent.mkdir(parents=True, exist_ok=True)
+    metadata = validate_result_metadata(model_result)
     shutil.copyfile(model_result, final_output)
+    shutil.copyfile(model_result.with_suffix(".metadata.json"), final_output.with_suffix(".metadata.json"))
     validate_result(final_output)
-    print(f"test completed: {final_output}")
+    print(f"test completed: {final_output} date={metadata.get('submission_date')}")
 
 
 if __name__ == "__main__":

@@ -170,12 +170,14 @@ def train_lstm_regressor(
             loss.backward()
             optimizer.step()
 
+    preds: list[np.ndarray] = []
     model.eval()
     with torch.no_grad():
-        x_valid = torch.from_numpy(dataset.x_valid).to(device)
-        preds = model(x_valid).detach().cpu().numpy()
+        for start in range(0, len(dataset.x_valid), batch_size):
+            x_valid = torch.from_numpy(dataset.x_valid[start : start + batch_size]).to(device)
+            preds.append(model(x_valid).detach().cpu().numpy())
 
     valid_pred_df = dataset.valid_meta.copy()
-    valid_pred_df["score"] = preds
+    valid_pred_df["score"] = np.concatenate(preds, axis=0) if preds else np.empty((0,), dtype=np.float32)
     valid_pred_df["label"] = dataset.y_valid
     return model, valid_pred_df

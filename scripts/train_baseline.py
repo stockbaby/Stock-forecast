@@ -34,6 +34,8 @@ def main() -> None:
         valid_days=cfg["training"].get("valid_days"),
         portfolio_strategies=cfg.get("portfolio", {}).get("strategies"),
         portfolio_temperature=cfg.get("portfolio", {}).get("temperature", 1.0),
+        inference_date=cfg.get("output", {}).get("inference_date") or cfg.get("data", {}).get("benchmark_end_date"),
+        latest_prediction_path=cfg.get("output", {}).get("latest_prediction_path"),
     )
     metrics = run_training(train_cfg)
     print(json.dumps(metrics, ensure_ascii=False, indent=2))

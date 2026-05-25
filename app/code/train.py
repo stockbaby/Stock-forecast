@@ -68,6 +68,28 @@ def main() -> None:
 
     metrics_path = PROJECT_ROOT / cfg["output"]["metrics_path"]
     metrics = json.loads(metrics_path.read_text(encoding="utf-8")) if metrics_path.exists() else {}
+    expected_date = cfg.get("output", {}).get("inference_date") or cfg.get("data", {}).get("benchmark_end_date")
+    metadata = {
+        "submission_source": metrics.get("submission_source"),
+        "submission_date": metrics.get("submission_date"),
+        "expected_inference_date": str(expected_date) if expected_date else None,
+        "source_submission_path": str(submission_path),
+        "source_metrics_path": str(metrics_path),
+    }
+    if metadata["submission_source"] != "latest_inference":
+        raise ValueError(f"Submission must come from latest_inference, got {metadata['submission_source']!r}.")
+    if expected_date and metadata["submission_date"] != str(expected_date):
+        raise ValueError(
+            f"Submission date mismatch: submission_date={metadata['submission_date']} expected_unlabeled_T={expected_date}."
+        )
+    model_result.with_suffix(".metadata.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    final_output.with_suffix(".metadata.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     metrics["model_result_path"] = str(model_result)
     metrics["final_output_path"] = str(final_output)
     print(json.dumps(metrics, ensure_ascii=False, indent=2))

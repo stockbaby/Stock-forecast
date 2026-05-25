@@ -1,0 +1,57 @@
+seed: 42
+data:
+  raw_dir: data/raw_train_20260517
+  processed_path: data/processed/model_dataset_holdout_20260517_alpha.csv
+  market_index_path: data/raw_train_20260517/hs300_index.csv
+  reuse_processed: true
+  benchmark_end_date: '2026-05-15'
+features:
+  lookback_windows:
+  - 3
+  - 5
+  - 10
+  - 20
+  - 30
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+training:
+  valid_days: 90
+  recent_train_days: 90
+  top_k: 5
+  max_weight_sum: 1.0
+portfolio:
+  strategies:
+  - softmax_t0.6
+  - proportional_positive_thr0.0
+  - equal_weight
+  temperature: 0.8
+deep:
+  lookback: 20
+  d_model: 64
+  nhead: 4
+  num_layers: 2
+  dim_feedforward: 128
+  patch_len: 5
+  stride: 5
+  dropout: 0.12
+  batch_size: 768
+  epochs: 3
+  learning_rate: 0.0008
+  weight_decay: 0.0001
+  early_stopping_patience: 2
+  lr_decay_factor: 0.5
+  min_lr: 1.0e-05
+  regression_weight: 0.65
+  rank_weight: 0.2
+  corr_weight: 0.15
+  label_clip: 0.18
+  eval_batch_size: 1024
+output:
+  metrics_path: outputs\holdout_20260517\timexer_alpha_fast_metrics.json
+  prediction_path: outputs\holdout_20260517\timexer_alpha_fast_predictions.csv
+  submission_path: outputs\holdout_20260517\timexer_alpha_fast_submission.csv
+  latest_prediction_path: outputs\holdout_20260517\timexer_alpha_fast_latest_predictions.csv
+  inference_date: '2026-05-15'

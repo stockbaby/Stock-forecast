@@ -11,11 +11,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.models.deep_sequence import build_lstm_sequences
+from src.models.deep_sequence import build_lstm_sequences, build_prediction_sequences
 from src.models.timexer import TimeXerTrainConfig, train_timexer_regressor
 from src.portfolio.construct import build_top_k_submission, select_best_portfolio_strategy
 from src.training.dataset_builder import DatasetBuildConfig, build_model_dataset
-from src.training.metrics import precision_at_k, rank_ic, top_k_portfolio_return
+from src.training.metrics import precision_at_k, rank_ic, top_hit_rate, top_k_portfolio_return
 from src.training.train_baseline import _default_time_split, save_dataframe, validate_submission
 from src.utils.config import load_yaml_config
 
@@ -43,6 +43,8 @@ def main() -> None:
         )
         df = build_model_dataset(build_cfg)
     df["date"] = pd.to_datetime(df["date"])
+    for col in df.select_dtypes(include=["float64"]).columns:
+        df[col] = df[col].astype("float32")
 
     feature_columns = [
         col
@@ -51,7 +53,7 @@ def main() -> None:
         and not col.startswith("Unnamed:")
         and pd.api.types.is_numeric_dtype(df[col])
     ]
-    model_df = df.dropna(subset=[cfg["label"]["name"]]).copy()
+    model_df = df[df[cfg["label"]["name"]].notna()]
     train_df, valid_df = _default_time_split(model_df, valid_days=cfg["training"].get("valid_days"))
     recent_train_days = cfg["training"].get("recent_train_days")
     if recent_train_days:
@@ -88,7 +90,30 @@ def main() -> None:
         eval_batch_size=cfg["deep"].get("eval_batch_size", 1024),
         seed=cfg.get("seed", 42),
     )
-    _, valid_pred_df = train_timexer_regressor(dataset, train_cfg)
+    model, valid_pred_df = train_timexer_regressor(dataset, train_cfg)
+    inference_date_value = (
+        cfg.get("output", {}).get("inference_date")
+        or cfg.get("data", {}).get("benchmark_end_date")
+        or df["date"].max()
+    )
+    inference_date = pd.Timestamp(inference_date_value)
+    infer_source_df = df[df["date"] <= inference_date].groupby("stock_id", group_keys=False).tail(cfg["deep"]["lookback"])
+    x_infer, infer_meta = build_prediction_sequences(
+        df=infer_source_df,
+        feature_columns=feature_columns,
+        lookback=cfg["deep"]["lookback"],
+        target_dates=[inference_date],
+    )
+    infer_pred_df = None
+    if len(x_infer) > 0:
+        import torch
+        from src.models.timexer import _normalize_sequences, _predict_in_batches
+
+        device = next(model.parameters()).device
+        _, x_infer_norm = _normalize_sequences(dataset.x_train, x_infer)
+        preds = _predict_in_batches(model, x_infer_norm, cfg["deep"].get("eval_batch_size", 1024), device, torch)
+        infer_pred_df = infer_meta.copy()
+        infer_pred_df["score"] = preds
 
     eval_df = valid_pred_df.rename(columns={"label": cfg["label"]["name"]})
     strategies = cfg.get("portfolio", {}).get("strategies", ["softmax_t0.6", "proportional_positive_thr0.0"])
@@ -105,15 +130,29 @@ def main() -> None:
         "model_name": "timexer",
         "n_train_sequences": int(len(dataset.x_train)),
         "n_valid_sequences": int(len(dataset.x_valid)),
+        "n_inference_sequences": int(len(x_infer)),
+        "inference_date": str(inference_date.date()),
         "n_features": int(len(feature_columns)),
         "rank_ic": rank_ic(eval_df, cfg["label"]["name"], "score"),
         "precision_at_k": precision_at_k(eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]),
+        "top1_hit_rate": top_hit_rate(eval_df, cfg["label"]["name"], "score", true_top_k=1, pred_top_k=1),
+        "top2_hit_rate": top_hit_rate(eval_df, cfg["label"]["name"], "score", true_top_k=2, pred_top_k=2),
         "top_k_portfolio_return": top_k_portfolio_return(eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]),
         "selected_portfolio_strategy": best_strategy,
         "portfolio_strategy_results": strategy_results,
     }
     save_dataframe(valid_pred_df, cfg["output"]["prediction_path"])
-    latest = valid_pred_df[valid_pred_df["date"] == valid_pred_df["date"].max()].copy()
+    latest_prediction_path = cfg["output"].get("latest_prediction_path")
+    if infer_pred_df is not None and not infer_pred_df.empty:
+        if latest_prediction_path:
+            save_dataframe(infer_pred_df, latest_prediction_path)
+        latest = infer_pred_df.copy()
+        metrics["submission_source"] = "latest_inference"
+        metrics["submission_date"] = str(pd.Timestamp(latest["date"].max()).date())
+    else:
+        latest = valid_pred_df[valid_pred_df["date"] == valid_pred_df["date"].max()].copy()
+        metrics["submission_source"] = "validation_fallback"
+        metrics["submission_date"] = str(pd.Timestamp(latest["date"].max()).date())
     submission = build_top_k_submission(
         latest,
         score_col="score",

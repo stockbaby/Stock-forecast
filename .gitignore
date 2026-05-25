@@ -37,6 +37,7 @@ Thumbs.db
 data/raw/*
 data/interim/*
 data/processed/*
+data/raw_train_*/
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 !data/processed/.gitkeep
@@ -44,6 +45,13 @@ data/processed/*
 outputs/models/*
 outputs/predictions/*
 outputs/submissions/*
+outputs/candidate_switch/
+outputs/holdout_*/
+outputs/method_validation*/
+outputs/online_window_sim/
+outputs/real_a_stage_*.json
+outputs/real_a_stage_*.csv
+outputs/tmp_*.csv
 outputs/**/*.ckpt
 outputs/**/*.pt
 outputs/**/*.pth

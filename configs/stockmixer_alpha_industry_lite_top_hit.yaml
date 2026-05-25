@@ -1,0 +1,79 @@
+seed: 42
+data:
+  raw_dir: data/raw
+  processed_path: data/processed/model_dataset_stockmixer_alpha_industry_lite.csv
+  market_index_path: data/raw/hs300_index.csv
+  industry_map_path: data/raw/hs300_stock_list.csv
+  benchmark_end_date: 2026-04-24
+features:
+  lookback_windows:
+  - 3
+  - 5
+  - 10
+  - 20
+  - 30
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+training:
+  valid_days: 120
+  top_k: 5
+  max_weight_sum: 1.0
+portfolio:
+  strategies:
+  - top1_weight
+  - top2_softmax
+  - confidence_topk
+  - softmax_t0.6
+  - proportional_positive_thr0.0
+  temperature: 0.8
+deep:
+  lookback: 30
+  hidden_dim: 128
+  mixer_dim: 256
+  temporal_dim: 80
+  dropout: 0.12
+  batch_size: 384
+  epochs: 8
+  learning_rate: 0.0008
+  weight_decay: 0.0001
+  early_stopping_patience: 3
+  lr_decay_factor: 0.5
+  min_lr: 1.0e-05
+  recent_weight_power: 1.8
+  regression_weight: 0.65
+  rank_weight: 0.25
+  corr_weight: 0.1
+  label_clip: 0.18
+  patch_sizes:
+  - 5
+  - 10
+  - 20
+  - 30
+  train_recency_halflife_days: 25
+  validation_recent_windows:
+  - 15
+  - 30
+  - 45
+  - 60
+  - 90
+  validation_decay: 0.72
+  validation_return_weight: 2.2
+  validation_topk_weight: 0.35
+  validation_rankic_weight: 0.12
+  validation_precision_weight: 0.1
+  seeds:
+  - 42
+  top_hit_weight: 0.08
+  top_hit_k: 2
+  top_hit_temperature: 0.2
+  official_rank_weight: 0.12
+  official_top_k: 3
+  official_top_k_weight: 3.0
+output:
+  metrics_path: outputs/predictions/stockmixer_alpha_industry_lite_top_hit_metrics.json
+  prediction_path: outputs/predictions/stockmixer_alpha_industry_lite_top_hit_predictions.csv
+  submission_path: outputs/submissions/result_stockmixer_alpha_industry_lite_top_hit.csv
+  latest_prediction_path: outputs/predictions/stockmixer_alpha_industry_lite_top_hit_latest_predictions.csv
