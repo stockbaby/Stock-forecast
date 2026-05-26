@@ -18,6 +18,39 @@ class SequenceDatasetBundle:
     feature_columns: list[str]
 
 
+MARKET_CONTEXT_COLUMNS = [
+    "regime_trend",
+    "regime_vol_ratio",
+    "regime_drawdown",
+    "regime_score",
+    "regime_is_trending",
+    "regime_is_high_vol",
+    "index_ret_1",
+    "index_ret_5",
+    "index_ret_10",
+    "index_ret_20",
+    "index_volatility_5",
+    "index_volatility_20",
+    "index_drawdown_20",
+    "ret_5",
+    "ret_20",
+    "volatility_20",
+    "volume_ratio_5",
+    "volume_ratio_20",
+    "amount_ratio_5",
+    "amount_ratio_20",
+    "volume_breakout_5",
+    "volume_breakout_20",
+    "industry_id",
+    "industry_collective_momentum",
+    "industry_collective_volume_confirm",
+]
+
+
+def _meta_context(row: pd.Series) -> dict[str, Any]:
+    return {col: row[col] for col in MARKET_CONTEXT_COLUMNS if col in row.index}
+
+
 def build_lstm_sequences(
     train_df: pd.DataFrame,
     valid_df: pd.DataFrame,
@@ -63,7 +96,7 @@ def build_prediction_sequences(
                 continue
             seq = x[idx - lookback + 1 : idx + 1]
             sequences.append(seq)
-            metas.append({"stock_id": str(stock_id), "date": dates.iloc[idx]})
+            metas.append({"stock_id": str(stock_id), "date": dates.iloc[idx], **_meta_context(group.iloc[idx])})
 
     if not sequences:
         return (
@@ -97,7 +130,7 @@ def _build_sequences_for_frame(
             seq = x[idx - lookback + 1 : idx + 1]
             sequences.append(seq)
             targets.append(float(y[idx]))
-            metas.append({"stock_id": str(stock_id), "date": dates.iloc[idx]})
+            metas.append({"stock_id": str(stock_id), "date": dates.iloc[idx], **_meta_context(group.iloc[idx])})
 
     if not sequences:
         return (

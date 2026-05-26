@@ -9,6 +9,32 @@ import pandas as pd
 
 from src.features.industry_context import load_industry_map
 
+PORTFOLIO_CONTEXT_COLUMNS = [
+    "score_std",
+    "regime_trend",
+    "regime_vol_ratio",
+    "regime_drawdown",
+    "regime_score",
+    "regime_is_trending",
+    "regime_is_high_vol",
+    "index_ret_5",
+    "index_ret_10",
+    "index_ret_20",
+    "index_drawdown_20",
+    "ret_5",
+    "ret_20",
+    "volume_ratio_5",
+    "volume_ratio_20",
+    "amount_ratio_5",
+    "amount_ratio_20",
+    "volume_breakout_5",
+    "volume_breakout_20",
+    "industry_name",
+    "industry_id",
+    "industry_collective_momentum",
+    "industry_collective_volume_confirm",
+]
+
 
 def _normalize_stock_id(value: object) -> str:
     return str(value).split(".")[0].zfill(6)
@@ -25,6 +51,59 @@ def _softmax(x: np.ndarray, temperature: float = 1.0) -> np.ndarray:
     if denom <= 0:
         return np.repeat(1.0 / len(x), len(x))
     return exp_x / denom
+
+
+def _first_numeric(candidates: pd.DataFrame, columns: list[str], default: float = 0.0, mode: str = "first") -> float:
+    for col in columns:
+        if col not in candidates.columns:
+            continue
+        values = pd.to_numeric(candidates[col], errors="coerce").dropna()
+        if values.empty:
+            continue
+        if mode == "mean":
+            return float(values.mean())
+        return float(values.iloc[0])
+    return default
+
+
+def _market_state_inputs(candidates: pd.DataFrame) -> dict[str, float]:
+    high_vol = _first_numeric(candidates, ["regime_is_high_vol"], default=0.0)
+    vol_ratio = _first_numeric(candidates, ["regime_vol_ratio"], default=1.0)
+    if "regime_is_high_vol" not in candidates.columns and vol_ratio:
+        high_vol = float(np.clip(vol_ratio - 1.0, 0.0, 2.0))
+
+    drawdown = _first_numeric(candidates, ["regime_drawdown", "index_drawdown_20"], default=0.0)
+    drawdown_risk = float(np.clip(abs(min(drawdown, 0.0)) * 5.0, 0.0, 1.5))
+
+    trend = _first_numeric(candidates, ["regime_trend", "regime_score"], default=0.0)
+    index_momentum = _first_numeric(candidates, ["index_ret_20", "index_ret_10", "index_ret_5"], default=0.0)
+    stock_momentum = _first_numeric(candidates, ["ret_20", "ret_5"], default=0.0, mode="mean")
+    momentum = float(np.tanh(3.0 * trend + 5.0 * index_momentum + 2.0 * stock_momentum))
+
+    volume_breakout = _first_numeric(
+        candidates,
+        ["volume_breakout_20", "volume_breakout_5", "volume_ratio_20", "volume_ratio_5", "amount_ratio_20", "amount_ratio_5"],
+        default=1.0,
+        mode="mean",
+    )
+    volume_pressure = float(np.clip(volume_breakout - 1.0, 0.0, 2.0))
+
+    industry_concentration = 0.0
+    for col in ["industry_name", "industry_id"]:
+        if col in candidates.columns and len(candidates) > 0:
+            concentration = candidates[col].astype(str).value_counts(normalize=True).max()
+            industry_concentration = float(concentration)
+            break
+
+    risk = float(np.clip(0.45 * high_vol + 0.35 * drawdown_risk + 0.15 * volume_pressure + 0.20 * industry_concentration - 0.30 * max(momentum, 0.0), 0.0, 2.0))
+    return {
+        "market_risk": risk,
+        "market_momentum": momentum,
+        "market_high_vol": float(high_vol),
+        "market_drawdown_risk": drawdown_risk,
+        "volume_pressure": volume_pressure,
+        "industry_concentration": industry_concentration,
+    }
 
 
 def _candidate_frame(
@@ -175,17 +254,23 @@ def _weights_from_strategy(
             if std_scale > 1e-8:
                 uncertainty_z = float((std_values[0] - np.mean(std_values)) / std_scale)
 
-        if margin_12 >= 1.0 and top_strength >= 0.75 and uncertainty_z <= 0.5:
+        market_state = _market_state_inputs(candidates)
+        market_risk = market_state["market_risk"]
+        market_momentum = market_state["market_momentum"]
+        strong_signal = margin_12 >= 1.0 and top_strength >= 0.75 and uncertainty_z <= 0.5
+        weak_signal = margin_12 <= 0.35 or uncertainty_z >= 1.0 or market_risk >= 1.0
+
+        if strong_signal and market_risk < 0.65 and market_momentum > -0.25:
             weights = np.zeros(len(candidates), dtype=float)
             weights[0] = max_weight_sum
             return weights
-        if margin_12 <= 0.35 or uncertainty_z >= 1.0:
+        if weak_signal:
             subset = min(2, len(candidates))
             weights = np.zeros(len(candidates), dtype=float)
             weights[:subset] = _softmax(scores[:subset], temperature=temperature) * max_weight_sum
             return weights
 
-        confidence = 0.60 * margin_12 + 0.25 * top_strength - 0.35 * uncertainty_z
+        confidence = 0.60 * margin_12 + 0.25 * top_strength - 0.35 * uncertainty_z - 0.30 * market_risk + 0.15 * market_momentum
         top1_weight = max_weight_sum * float(np.clip(0.50 + 0.16 * confidence, 0.35, 0.88))
         weights = np.zeros(len(candidates), dtype=float)
         weights[0] = top1_weight
@@ -285,7 +370,7 @@ def evaluate_portfolio_strategy(
 ) -> dict:
     daily_returns: list[float] = []
     required_cols = [label_col, score_col, "date", "stock_id"]
-    optional_cols = [col for col in ["score_std"] if col in df.columns]
+    optional_cols = [col for col in PORTFOLIO_CONTEXT_COLUMNS if col in df.columns and col not in required_cols]
     eval_cols = [*required_cols, *optional_cols]
 
     for _, group in df[eval_cols].dropna(subset=[label_col, score_col, "date", "stock_id"]).groupby("date"):

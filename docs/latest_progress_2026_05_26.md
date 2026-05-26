@@ -14,6 +14,15 @@
 
 该策略会读取 multi-seed 聚合输出中的 `score_std`。同时修复了组合评估函数过去丢弃 `score_std` 的问题，使 seed disagreement 可以真正进入验证和提交构造链路。
 
+补充：`dynamic_risk_budget` 现已接入市场状态输入。新生成的序列模型预测会从 meta 透传以下上下文列：
+
+- 指数/市场状态：`regime_trend`、`regime_vol_ratio`、`regime_drawdown`、`regime_score`、`regime_is_high_vol`
+- 指数动量与回撤：`index_ret_5`、`index_ret_10`、`index_ret_20`、`index_drawdown_20`
+- 截面量价状态：`ret_5`、`ret_20`、`volume_ratio_5`、`volume_ratio_20`、`amount_ratio_5`、`amount_ratio_20`
+- 行业/主题拥挤：`industry_id`、`industry_collective_momentum`、`industry_collective_volume_confirm`
+
+组合层会用这些输入构造 `market_risk` 与 `market_momentum`。高波动、深回撤、量能异常或行业集中时降低 Top1 集中度；正向趋势和低风险时允许更集中。旧预测文件没有这些列时会自动回退到分数边际和 `score_std` 逻辑。
+
 ## 风险指标补齐
 
 `evaluate_portfolio_strategy` 现在除均值和波动外，还输出：
@@ -57,6 +66,7 @@
 
 ```text
 python -m py_compile src/models/master.py src/models/stockmixer.py scripts/train_master_baseline.py scripts/train_stockmixer_baseline.py src/portfolio/construct.py scripts/simulate_online_windows.py scripts/validate_multiple_methods.py
+python -m py_compile src/models/deep_sequence.py src/portfolio/construct.py
 ```
 
 并用现有 `master_alpha_official_rank` 预测文件跑通：
@@ -66,8 +76,10 @@ scripts/validate_multiple_methods.py --strategies top1_weight,top2_softmax,confi
 scripts/simulate_online_windows.py --strategies top1_weight,top2_softmax,confidence_topk,dynamic_risk_budget --selection-windows 20,40
 ```
 
+并用最小样例验证：低风险强趋势输入会给 Top1 满仓；高波动、回撤和负动量输入会降低 Top1 权重并分散到后续候选。
+
 ## 下一步
 
 1. 跑 `master_alpha_top_label_listnet` 完整训练，比较 official、top_hit、top_label_listnet。
-2. 对 `dynamic_risk_budget` 增加市场状态输入，例如行业集中度、指数动量、波动和成交额突破。
-3. 在 `master_multiseed_latest_predictions.csv` 生成后，优先验证 `dynamic_risk_budget` 是否能利用 `score_std` 改善 top1 风险。
+2. 在 `master_multiseed_latest_predictions.csv` 生成后，优先验证 `dynamic_risk_budget` 是否能同时利用 `score_std` 与市场状态改善 top1 风险。
+3. 若市场状态输入有效，再把阈值从手工规则升级为 walk-forward 可学习 selector。
