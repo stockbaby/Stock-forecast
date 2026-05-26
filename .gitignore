@@ -48,7 +48,7 @@ outputs/submissions/*
 outputs/candidate_switch/
 outputs/holdout_*/
 outputs/method_validation*/
-outputs/online_window_sim/
+outputs/online_window_sim*/
 outputs/real_a_stage_*.json
 outputs/real_a_stage_*.csv
 outputs/tmp_*.csv

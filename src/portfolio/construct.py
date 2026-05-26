@@ -161,6 +161,40 @@ def _weights_from_strategy(
             )
         return weights
 
+    if strategy == "dynamic_risk_budget":
+        if len(candidates) == 1:
+            return np.array([max_weight_sum], dtype=float)
+        score_scale = float(np.std(scores))
+        score_scale = score_scale if score_scale > 1e-8 else 1.0
+        margin_12 = float((scores[0] - scores[1]) / score_scale)
+        top_strength = float((scores[0] - np.mean(scores)) / score_scale)
+        uncertainty_z = 0.0
+        if "score_std" in candidates.columns:
+            std_values = candidates["score_std"].to_numpy(dtype=float)
+            std_scale = float(np.std(std_values))
+            if std_scale > 1e-8:
+                uncertainty_z = float((std_values[0] - np.mean(std_values)) / std_scale)
+
+        if margin_12 >= 1.0 and top_strength >= 0.75 and uncertainty_z <= 0.5:
+            weights = np.zeros(len(candidates), dtype=float)
+            weights[0] = max_weight_sum
+            return weights
+        if margin_12 <= 0.35 or uncertainty_z >= 1.0:
+            subset = min(2, len(candidates))
+            weights = np.zeros(len(candidates), dtype=float)
+            weights[:subset] = _softmax(scores[:subset], temperature=temperature) * max_weight_sum
+            return weights
+
+        confidence = 0.60 * margin_12 + 0.25 * top_strength - 0.35 * uncertainty_z
+        top1_weight = max_weight_sum * float(np.clip(0.50 + 0.16 * confidence, 0.35, 0.88))
+        weights = np.zeros(len(candidates), dtype=float)
+        weights[0] = top1_weight
+        tail_count = min(4, len(candidates) - 1)
+        weights[1 : 1 + tail_count] = (
+            _softmax(scores[1 : 1 + tail_count], temperature=temperature) * (max_weight_sum - top1_weight)
+        )
+        return weights
+
     if strategy == "softmax":
         return _softmax(scores, temperature=temperature) * max_weight_sum
 
@@ -185,6 +219,15 @@ def _weights_from_strategy(
         return positive_scores / positive_scores.sum() * max_weight_sum
 
     raise ValueError(f"Unsupported portfolio strategy: {strategy}")
+
+
+def _max_drawdown(returns: list[float]) -> float:
+    if not returns:
+        return math.nan
+    equity = np.cumprod(1.0 + np.asarray(returns, dtype=float))
+    running_peak = np.maximum.accumulate(equity)
+    drawdowns = equity / np.maximum(running_peak, 1e-12) - 1.0
+    return float(np.min(drawdowns))
 
 
 def build_top_k_submission(
@@ -241,8 +284,11 @@ def evaluate_portfolio_strategy(
     max_per_industry: int | None = None,
 ) -> dict:
     daily_returns: list[float] = []
+    required_cols = [label_col, score_col, "date", "stock_id"]
+    optional_cols = [col for col in ["score_std"] if col in df.columns]
+    eval_cols = [*required_cols, *optional_cols]
 
-    for _, group in df[[label_col, score_col, "date", "stock_id"]].dropna().groupby("date"):
+    for _, group in df[eval_cols].dropna(subset=[label_col, score_col, "date", "stock_id"]).groupby("date"):
         submission = build_top_k_submission(
             group,
             score_col=score_col,
@@ -269,10 +315,14 @@ def evaluate_portfolio_strategy(
     if not daily_returns:
         return {"strategy": strategy, "mean_return": math.nan, "num_days": 0}
 
+    return_array = np.asarray(daily_returns, dtype=float)
     return {
         "strategy": strategy,
-        "mean_return": float(np.mean(daily_returns)),
-        "std_return": float(np.std(daily_returns)),
+        "mean_return": float(np.mean(return_array)),
+        "std_return": float(np.std(return_array)),
+        "p05_return": float(np.quantile(return_array, 0.05)),
+        "negative_rate": float(np.mean(return_array < 0.0)),
+        "max_drawdown": _max_drawdown(daily_returns),
         "num_days": int(len(daily_returns)),
     }
 

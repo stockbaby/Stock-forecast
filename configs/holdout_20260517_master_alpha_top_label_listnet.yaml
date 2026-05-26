@@ -1,0 +1,69 @@
+seed: 42
+data:
+  raw_dir: data/raw_train_20260517
+  processed_path: data/processed/model_dataset_holdout_20260517_alpha.csv
+  market_index_path: data/raw_train_20260517/hs300_index.csv
+  industry_map_path: data/raw_train_20260517/hs300_stock_list.csv
+  benchmark_end_date: '2026-05-15'
+  reuse_processed: true
+features:
+  lookback_windows:
+  - 3
+  - 5
+  - 10
+  - 20
+  - 30
+label:
+  name: y_ret_a_stage_round1_open_open
+  horizon_buy_offset: 1
+  horizon_sell_offset: 5
+  horizon_sell_fallback_offset: 4
+training:
+  valid_days: 120
+  top_k: 5
+  max_weight_sum: 1.0
+  recent_train_days: 90
+portfolio:
+  strategies:
+  - top1_weight
+  - top2_softmax
+  - confidence_topk
+  - dynamic_risk_budget
+  - softmax_t0.6
+  - proportional_positive_thr0.0
+  temperature: 0.8
+deep:
+  lookback: 30
+  hidden_dim: 160
+  num_heads: 4
+  num_layers: 2
+  ff_dim: 320
+  dropout: 0.12
+  batch_size: 32
+  epochs: 8
+  learning_rate: 0.0008
+  weight_decay: 0.0001
+  early_stopping_patience: 3
+  lr_decay_factor: 0.5
+  min_lr: 1.0e-05
+  market_gate_strength: 1.0
+  regression_weight: 0.52
+  rank_weight: 0.18
+  corr_weight: 0.08
+  official_rank_weight: 0.10
+  official_top_k: 3
+  official_top_k_weight: 3.0
+  official_base_weight: 1.0
+  official_temperature: 1.0
+  top_label_listnet_weight: 0.12
+  top_label_top_k: 5
+  top_label_top_weight: 2.5
+  top_label_temperature: 0.7
+  label_clip: 0.18
+  validation_strategy: top2_softmax
+output:
+  metrics_path: outputs/holdout_20260517/master_alpha_top_label_listnet_metrics.json
+  prediction_path: outputs/holdout_20260517/master_alpha_top_label_listnet_predictions.csv
+  latest_prediction_path: outputs/holdout_20260517/master_alpha_top_label_listnet_latest_predictions.csv
+  submission_path: outputs/holdout_20260517/master_alpha_top_label_listnet_submission.csv
+  inference_date: '2026-05-15'

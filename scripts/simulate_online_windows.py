@@ -49,6 +49,41 @@ def _strategy_grid(strategies: list[str], max_per_industry_values: list[int | No
     ]
 
 
+def _selection_value(metrics: dict, selection_score: str, risk_weight: float, negative_weight: float) -> float:
+    mean_return = float(metrics.get("mean_return", math.nan))
+    if np.isnan(mean_return):
+        return -math.inf
+    if selection_score == "mean_return":
+        return mean_return
+    if selection_score == "risk_adjusted":
+        p05 = float(metrics.get("p05_return", 0.0))
+        negative_rate = float(metrics.get("negative_rate", 0.0))
+        return mean_return + risk_weight * p05 - negative_weight * negative_rate
+    raise ValueError(f"Unsupported selection score: {selection_score}")
+
+
+def _return_summary(returns: list[float]) -> dict:
+    if not returns:
+        return {
+            "mean_return": math.nan,
+            "std_return": math.nan,
+            "p05_return": math.nan,
+            "negative_rate": math.nan,
+            "max_drawdown": math.nan,
+        }
+    return_array = np.asarray(returns, dtype=float)
+    equity = np.cumprod(1.0 + return_array)
+    running_peak = np.maximum.accumulate(equity)
+    drawdowns = equity / np.maximum(running_peak, 1e-12) - 1.0
+    return {
+        "mean_return": float(np.mean(return_array)),
+        "std_return": float(np.std(return_array)),
+        "p05_return": float(np.quantile(return_array, 0.05)),
+        "negative_rate": float(np.mean(return_array < 0.0)),
+        "max_drawdown": float(np.min(drawdowns)),
+    }
+
+
 def _evaluate_one_day(
     daily: pd.DataFrame,
     label_col: str,
@@ -86,6 +121,9 @@ def _choose_best_spec(
     max_weight_sum: float,
     temperature: float,
     industry_map_path: str | None,
+    selection_score: str,
+    risk_weight: float,
+    negative_weight: float,
 ) -> tuple[dict, list[dict]]:
     rows = []
     for spec in specs:
@@ -100,8 +138,14 @@ def _choose_best_spec(
             industry_map_path=industry_map_path,
             max_per_industry=spec["max_per_industry"],
         )
-        rows.append({**spec, **metrics})
-    rows.sort(key=lambda item: (-math.inf if np.isnan(item["mean_return"]) else item["mean_return"]), reverse=True)
+        rows.append(
+            {
+                **spec,
+                **metrics,
+                "selection_value": _selection_value(metrics, selection_score, risk_weight, negative_weight),
+            }
+        )
+    rows.sort(key=lambda item: item["selection_value"], reverse=True)
     return rows[0], rows
 
 
@@ -116,6 +160,9 @@ def walk_forward_simulation(
     max_weight_sum: float,
     temperature: float,
     industry_map_path: str | None,
+    selection_score: str,
+    risk_weight: float,
+    negative_weight: float,
 ) -> dict:
     labeled = df.dropna(subset=[label_col, score_col]).copy()
     dates = sorted(pd.to_datetime(labeled["date"]).drop_duplicates().tolist())
@@ -135,6 +182,9 @@ def walk_forward_simulation(
             max_weight_sum=max_weight_sum,
             temperature=temperature,
             industry_map_path=industry_map_path,
+            selection_score=selection_score,
+            risk_weight=risk_weight,
+            negative_weight=negative_weight,
         )
         score, submission = _evaluate_one_day(
             daily=daily,
@@ -163,8 +213,7 @@ def walk_forward_simulation(
         "selection_window": selection_window,
         "min_history_days": min_history_days,
         "num_days": len(records),
-        "mean_return": float(np.mean(returns)) if returns else math.nan,
-        "std_return": float(np.std(returns)) if returns else math.nan,
+        **_return_summary(returns),
         "records": records,
     }
 
@@ -178,6 +227,9 @@ def split_holdout_simulation(
     max_weight_sum: float,
     temperature: float,
     industry_map_path: str | None,
+    selection_score: str,
+    risk_weight: float,
+    negative_weight: float,
 ) -> dict:
     labeled = df.dropna(subset=[label_col, score_col]).copy()
     dates = sorted(pd.to_datetime(labeled["date"]).drop_duplicates().tolist())
@@ -195,6 +247,9 @@ def split_holdout_simulation(
         max_weight_sum=max_weight_sum,
         temperature=temperature,
         industry_map_path=industry_map_path,
+        selection_score=selection_score,
+        risk_weight=risk_weight,
+        negative_weight=negative_weight,
     )
     test_metrics = evaluate_portfolio_strategy(
         test,
@@ -225,9 +280,12 @@ def main() -> None:
     parser.add_argument("--output-dir", default="outputs/online_window_sim")
     parser.add_argument("--label-col", default="y_ret_a_stage_round1_open_open")
     parser.add_argument("--score-col", default="score")
-    parser.add_argument("--strategies", default="proportional_positive_thr0.0,proportional_positive_thr0.002,equal_weight,softmax_t0.6,positive_only_thr0.0")
+    parser.add_argument("--strategies", default="top1_weight,top2_softmax,confidence_topk,dynamic_risk_budget,softmax_t0.6,proportional_positive_thr0.0")
     parser.add_argument("--max-per-industry", default="none")
-    parser.add_argument("--selection-windows", default="20,40,60")
+    parser.add_argument("--selection-windows", default="20,40,60,90")
+    parser.add_argument("--selection-score", choices=["mean_return", "risk_adjusted"], default="risk_adjusted")
+    parser.add_argument("--risk-weight", type=float, default=0.25)
+    parser.add_argument("--negative-weight", type=float, default=0.01)
     parser.add_argument("--min-history-days", type=int, default=10)
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--max-weight-sum", type=float, default=1.0)
@@ -253,6 +311,9 @@ def main() -> None:
         max_weight_sum=args.max_weight_sum,
         temperature=args.temperature,
         industry_map_path=args.industry_map_path,
+        selection_score=args.selection_score,
+        risk_weight=args.risk_weight,
+        negative_weight=args.negative_weight,
     )
     walk_forward = [
         walk_forward_simulation(
@@ -266,12 +327,15 @@ def main() -> None:
             max_weight_sum=args.max_weight_sum,
             temperature=args.temperature,
             industry_map_path=args.industry_map_path,
+            selection_score=args.selection_score,
+            risk_weight=args.risk_weight,
+            negative_weight=args.negative_weight,
         )
         for window in _parse_csv_list(args.selection_windows)
     ]
     best_window = max(
         walk_forward,
-        key=lambda item: -math.inf if np.isnan(item["mean_return"]) else item["mean_return"],
+        key=lambda item: _selection_value(item, args.selection_score, args.risk_weight, args.negative_weight),
     )
     latest_submission_path = None
     if args.latest_prediction_path:
@@ -288,6 +352,9 @@ def main() -> None:
             max_weight_sum=args.max_weight_sum,
             temperature=args.temperature,
             industry_map_path=args.industry_map_path,
+            selection_score=args.selection_score,
+            risk_weight=args.risk_weight,
+            negative_weight=args.negative_weight,
         )
         latest_daily = latest[latest["date"] == latest["date"].max()].copy()
         submission = build_top_k_submission(
@@ -311,6 +378,9 @@ def main() -> None:
     summary = {
         "prediction_path": args.prediction_path,
         "latest_prediction_path": args.latest_prediction_path,
+        "selection_score": args.selection_score,
+        "risk_weight": args.risk_weight,
+        "negative_weight": args.negative_weight,
         "split_holdout": split,
         "walk_forward": walk_forward,
         "selected_window": best_window["selection_window"],

@@ -45,6 +45,10 @@ class MasterTrainConfig:
     top_hit_weight: float = 0.0
     top_hit_k: int = 2
     top_hit_temperature: float = 0.25
+    top_label_listnet_weight: float = 0.0
+    top_label_top_k: int = 5
+    top_label_top_weight: float = 2.0
+    top_label_temperature: float = 0.7
     label_clip: float = 0.18
     seed: int = 42
 
@@ -231,6 +235,37 @@ def _daily_group_top_hit_loss(pred, target, date_codes, config: MasterTrainConfi
         if int(mask.sum().item()) < 2:
             continue
         losses.append(_top_hit_loss(pred[mask], target[mask], config, torch_module))
+    if not losses:
+        return pred.new_tensor(0.0)
+    return torch_module.stack(losses).mean()
+
+
+def _top_label_weighted_listnet_loss(pred, target, config: MasterTrainConfig, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+    n_items = int(pred.numel())
+    order = torch_module.argsort(target, descending=True)
+    ranks = torch_module.empty_like(order)
+    ranks[order] = torch_module.arange(n_items, device=pred.device)
+    rank_fraction = 1.0 - ranks.to(pred.dtype) / max(float(n_items - 1), 1.0)
+    relevance = rank_fraction.pow(2.0)
+    weights = torch_module.ones_like(pred)
+    top_k = min(int(config.top_label_top_k), n_items)
+    if top_k > 0:
+        weights[order[:top_k]] = float(config.top_label_top_weight)
+    temp = max(float(config.top_label_temperature), 1e-3)
+    target_probs = torch_module.softmax(relevance / temp, dim=0)
+    pred_log_probs = torch_module.nn.functional.log_softmax(pred / temp, dim=0)
+    return -(target_probs * pred_log_probs * weights).sum() / weights.sum().clamp(min=1e-6)
+
+
+def _daily_group_top_label_listnet_loss(pred, target, date_codes, config: MasterTrainConfig, torch_module) -> object:
+    losses = []
+    for code in torch_module.unique(date_codes):
+        mask = date_codes == code
+        if int(mask.sum().item()) < 2:
+            continue
+        losses.append(_top_label_weighted_listnet_loss(pred[mask], target[mask], config, torch_module))
     if not losses:
         return pred.new_tensor(0.0)
     return torch_module.stack(losses).mean()
@@ -423,10 +458,12 @@ def train_master_regressor(
                 official_rank_loss = _daily_group_rank_loss(preds, y_batch, date_batch, config, torch)
                 portfolio_return_loss = _daily_group_portfolio_return_loss(preds, y_batch, date_batch, config, torch)
                 top_hit_loss = _daily_group_top_hit_loss(preds, y_batch, date_batch, config, torch)
+                top_label_listnet_loss = _daily_group_top_label_listnet_loss(preds, y_batch, date_batch, config, torch)
             else:
                 official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
                 portfolio_return_loss = _portfolio_return_loss(preds, y_batch, config, torch)
                 top_hit_loss = _top_hit_loss(preds, y_batch, config, torch)
+                top_label_listnet_loss = _top_label_weighted_listnet_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
                 + config.rank_weight * rank_loss
@@ -434,6 +471,7 @@ def train_master_regressor(
                 + config.official_rank_weight * official_rank_loss
                 + config.portfolio_return_weight * portfolio_return_loss
                 + config.top_hit_weight * top_hit_loss
+                + config.top_label_listnet_weight * top_label_listnet_loss
             )
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)

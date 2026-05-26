@@ -115,6 +115,10 @@ def main() -> None:
         top_hit_weight=cfg["deep"].get("top_hit_weight", 0.0),
         top_hit_k=cfg["deep"].get("top_hit_k", 2),
         top_hit_temperature=cfg["deep"].get("top_hit_temperature", 0.25),
+        top_label_listnet_weight=cfg["deep"].get("top_label_listnet_weight", 0.0),
+        top_label_top_k=cfg["deep"].get("top_label_top_k", cfg["training"]["top_k"]),
+        top_label_top_weight=cfg["deep"].get("top_label_top_weight", 2.0),
+        top_label_temperature=cfg["deep"].get("top_label_temperature", 0.7),
         label_clip=cfg["deep"].get("label_clip", 0.18),
         seed=cfg["seed"],
     )

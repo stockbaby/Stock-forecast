@@ -20,6 +20,7 @@ DEFAULT_STRATEGIES = [
     "top1_weight",
     "confidence_topk",
     "top2_softmax",
+    "dynamic_risk_budget",
     "top3_softmax",
     "proportional_positive_thr0.0",
 ]
@@ -128,7 +129,11 @@ def _evaluate_history(
             "p05": math.nan,
             "p10": math.nan,
             "max": math.nan,
+            "max_drawdown": math.nan,
         }, daily_records
+    equity = np.cumprod(1.0 + returns)
+    running_peak = np.maximum.accumulate(equity)
+    drawdowns = equity / np.maximum(running_peak, 1e-12) - 1.0
     return {
         "n": int(len(returns)),
         "mean": float(returns.mean()),
@@ -139,6 +144,7 @@ def _evaluate_history(
         "p05": float(np.quantile(returns, 0.05)),
         "p10": float(np.quantile(returns, 0.10)),
         "max": float(returns.max()),
+        "max_drawdown": float(drawdowns.min()),
     }, daily_records
 
 
