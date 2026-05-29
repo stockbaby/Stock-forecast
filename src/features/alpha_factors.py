@@ -100,10 +100,19 @@ def add_basic_price_features(df: pd.DataFrame, windows: list[int]) -> pd.DataFra
         out["short_momentum_3_5"] = out["ret_3"] + out["ret_5"]
         out["short_momentum_accel_3_5"] = out["ret_3"] - out["ret_5"]
         out["short_volume_momentum_3_5"] = out["short_momentum_3_5"] * out["volume_ratio_3"].clip(lower=0.0)
+        if "amount_ratio_3" in out.columns and "amount_ratio_5" in out.columns:
+            out["amount_accel_3_5"] = out["amount_ratio_3"] - out["amount_ratio_5"]
+        if "turnover_ratio_3" in out.columns and "turnover_ratio_5" in out.columns:
+            out["turnover_accel_3_5"] = out["turnover_ratio_3"] - out["turnover_ratio_5"]
     if {5, 20}.issubset(set(windows)):
         out["trend_alignment_5_20"] = out["ret_5"] + out["ret_20"]
         out["trend_accel_5_20"] = out["ret_5"] - out["ret_20"]
         out["breakout_volume_confirm_20"] = out["breakout_strength_20"] * out["volume_ratio_5"].clip(lower=0.0)
+    if "pct_chg_decimal" in out.columns:
+        out["limit_up_proximity"] = (out["pct_chg_decimal"] / 0.10).clip(lower=-1.0, upper=1.5)
+    if {"ret_3", "volume_ratio_3"}.issubset(out.columns):
+        liquidity = out["amount_ratio_5"] if "amount_ratio_5" in out.columns else out["volume_ratio_5"]
+        out["fragile_rally_penalty"] = out["ret_3"].clip(lower=0.0) * (-liquidity).clip(lower=0.0)
 
     return out
 

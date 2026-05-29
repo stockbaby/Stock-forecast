@@ -117,6 +117,10 @@ def main() -> None:
         top_label_temperature=cfg["deep"].get("top_label_temperature", 0.7),
         top1_margin_weight=cfg["deep"].get("top1_margin_weight", 0.0),
         top1_margin_target=cfg["deep"].get("top1_margin_target", 0.5),
+        top1_margin_label_gap=cfg["deep"].get("top1_margin_label_gap", 0.01),
+        top_bottom_pairwise_weight=cfg["deep"].get("top_bottom_pairwise_weight", 0.0),
+        top_bottom_top_k=cfg["deep"].get("top_bottom_top_k", 5),
+        top_bottom_bottom_k=cfg["deep"].get("top_bottom_bottom_k", 20),
         label_clip=cfg["deep"].get("label_clip", 0.2),
         patch_sizes=tuple(cfg["deep"].get("patch_sizes", [5, 10, 20, 30])),
     )

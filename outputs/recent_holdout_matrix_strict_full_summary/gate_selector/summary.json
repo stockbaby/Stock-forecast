@@ -1,0 +1,34 @@
+{
+  "features": [
+    "candidate_top1_agreement",
+    "candidate_top1_agreement_share",
+    "best_margin_z",
+    "best_top_strength",
+    "fallback_return_trailing_mean",
+    "switch_return_trailing_mean"
+  ],
+  "threshold": 0.55,
+  "selector": {
+    "n": 5,
+    "mean_return": -0.04173336729182142,
+    "p05_return": -0.05885200247101996,
+    "negative_rate": 1.0,
+    "max_drawdown": -0.15570879839101492
+  },
+  "always_allin": {
+    "n": 5,
+    "mean_return": -0.03725999941335874,
+    "p05_return": -0.05885200247101996,
+    "negative_rate": 1.0,
+    "max_drawdown": -0.1557087983910148
+  },
+  "always_fallback": {
+    "n": 5,
+    "mean_return": -0.01506612573512538,
+    "p05_return": -0.05885200247101996,
+    "negative_rate": 0.8,
+    "max_drawdown": -0.10730174394588554
+  },
+  "selection_rate": 0.4,
+  "classification_accuracy": 0.6
+}

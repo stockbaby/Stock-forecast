@@ -86,9 +86,13 @@ def build_model_dataset(config: DatasetBuildConfig) -> pd.DataFrame:
         "short_momentum_3_5",
         "short_momentum_accel_3_5",
         "short_volume_momentum_3_5",
+        "amount_accel_3_5",
+        "turnover_accel_3_5",
         "trend_alignment_5_20",
         "trend_accel_5_20",
         "breakout_volume_confirm_20",
+        "limit_up_proximity",
+        "fragile_rally_penalty",
     ]
     market_feature_cols = [
         "index_ret_1",
@@ -113,6 +117,7 @@ def build_model_dataset(config: DatasetBuildConfig) -> pd.DataFrame:
         *[f"index_volatility_{window}" for window in config.windows],
         *[f"index_drawdown_{window}" for window in config.windows],
         *[f"stock_excess_ret_{window}" for window in config.windows],
+        "short_excess_strength_3_5_10",
         *[f"style_excess_ret_{window}" for window in config.windows],
         *[f"style_z_ret_{window}" for window in config.windows],
         *[f"style_rank_ret_{window}" for window in config.windows],

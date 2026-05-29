@@ -82,6 +82,7 @@ def run_training(config: TrainConfig) -> dict:
         for col in df.columns
         if col not in {"date", "stock_id", config.label_name}
         and not col.startswith("Unnamed:")
+        and pd.api.types.is_numeric_dtype(df[col])
     ]
     model_df = df[df[config.label_name].notna()]
     train_df, valid_df = _default_time_split(

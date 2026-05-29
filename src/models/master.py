@@ -51,6 +51,10 @@ class MasterTrainConfig:
     top_label_temperature: float = 0.7
     top1_margin_weight: float = 0.0
     top1_margin_target: float = 0.5
+    top1_margin_label_gap: float = 0.01
+    top_bottom_pairwise_weight: float = 0.0
+    top_bottom_top_k: int = 5
+    top_bottom_bottom_k: int = 20
     label_clip: float = 0.18
     seed: int = 42
 
@@ -222,11 +226,31 @@ def _top1_margin_loss(pred, target, config: MasterTrainConfig, torch_module) -> 
     if pred.numel() < 2:
         return pred.new_tensor(0.0)
     true_top_idx = torch_module.argmax(target)
+    sorted_target, _ = torch_module.sort(target, descending=True)
+    label_gap = sorted_target[0] - sorted_target[1]
+    if label_gap < float(config.top1_margin_label_gap):
+        return pred.new_tensor(0.0)
     other_mask = torch_module.ones_like(pred, dtype=torch_module.bool)
     other_mask[true_top_idx] = False
     best_other = pred[other_mask].max()
     margin = pred[true_top_idx] - best_other
     return torch_module.nn.functional.softplus(float(config.top1_margin_target) - margin)
+
+
+def _top_bottom_pairwise_loss(pred, target, config: MasterTrainConfig, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+    top_k = min(int(config.top_bottom_top_k), int(pred.numel()))
+    bottom_k = min(int(config.top_bottom_bottom_k), int(pred.numel()) - top_k)
+    if top_k <= 0 or bottom_k <= 0:
+        return pred.new_tensor(0.0)
+    order = torch_module.argsort(target, descending=True)
+    top_pred = pred[order[:top_k]]
+    bottom_pred = pred[order[-bottom_k:]]
+    pred_diff = top_pred.unsqueeze(1) - bottom_pred.unsqueeze(0)
+    target_diff = target[order[:top_k]].unsqueeze(1) - target[order[-bottom_k:]].unsqueeze(0)
+    weights = target_diff.abs().clamp(min=1e-3, max=0.1)
+    return (torch_module.nn.functional.softplus(-pred_diff) * weights).mean()
 
 
 def _daily_group_portfolio_return_loss(pred, target, date_codes, config: MasterTrainConfig, torch_module) -> object:
@@ -260,6 +284,18 @@ def _daily_group_top1_margin_loss(pred, target, date_codes, config: MasterTrainC
         if int(mask.sum().item()) < 2:
             continue
         losses.append(_top1_margin_loss(pred[mask], target[mask], config, torch_module))
+    if not losses:
+        return pred.new_tensor(0.0)
+    return torch_module.stack(losses).mean()
+
+
+def _daily_group_top_bottom_pairwise_loss(pred, target, date_codes, config: MasterTrainConfig, torch_module) -> object:
+    losses = []
+    for code in torch_module.unique(date_codes):
+        mask = date_codes == code
+        if int(mask.sum().item()) < 2:
+            continue
+        losses.append(_top_bottom_pairwise_loss(pred[mask], target[mask], config, torch_module))
     if not losses:
         return pred.new_tensor(0.0)
     return torch_module.stack(losses).mean()
@@ -484,12 +520,16 @@ def train_master_regressor(
                 portfolio_return_loss = _daily_group_portfolio_return_loss(preds, y_batch, date_batch, config, torch)
                 top_hit_loss = _daily_group_top_hit_loss(preds, y_batch, date_batch, config, torch)
                 top1_margin_loss = _daily_group_top1_margin_loss(preds, y_batch, date_batch, config, torch)
+                top_bottom_pairwise_loss = _daily_group_top_bottom_pairwise_loss(
+                    preds, y_batch, date_batch, config, torch
+                )
                 top_label_listnet_loss = _daily_group_top_label_listnet_loss(preds, y_batch, date_batch, config, torch)
             else:
                 official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
                 portfolio_return_loss = _portfolio_return_loss(preds, y_batch, config, torch)
                 top_hit_loss = _top_hit_loss(preds, y_batch, config, torch)
                 top1_margin_loss = _top1_margin_loss(preds, y_batch, config, torch)
+                top_bottom_pairwise_loss = _top_bottom_pairwise_loss(preds, y_batch, config, torch)
                 top_label_listnet_loss = _top_label_weighted_listnet_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
@@ -499,6 +539,7 @@ def train_master_regressor(
                 + config.portfolio_return_weight * portfolio_return_loss
                 + config.top_hit_weight * top_hit_loss
                 + config.top1_margin_weight * top1_margin_loss
+                + config.top_bottom_pairwise_weight * top_bottom_pairwise_loss
                 + config.top_label_listnet_weight * top_label_listnet_loss
             )
             loss.backward()

@@ -86,6 +86,9 @@ def add_market_index_features(stock_df: pd.DataFrame, index_df: pd.DataFrame, wi
 
     for window in windows:
         out[f"stock_excess_ret_{window}"] = out[f"ret_{window}"] - out[f"index_ret_{window}"]
+    short_excess_cols = [f"stock_excess_ret_{window}" for window in (3, 5, 10) if f"stock_excess_ret_{window}" in out.columns]
+    if short_excess_cols:
+        out["short_excess_strength_3_5_10"] = out[short_excess_cols].sum(axis=1)
 
     g = out.groupby("stock_id", group_keys=False)
     for window in sorted(set(windows + [20, 60])):
