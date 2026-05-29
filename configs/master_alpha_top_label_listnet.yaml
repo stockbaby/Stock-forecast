@@ -54,6 +54,7 @@ deep:
   official_top_k_weight: 3.0
   official_base_weight: 1.0
   official_temperature: 1.0
+  date_batching: true
   top_label_listnet_weight: 0.12
   top_label_top_k: 5
   top_label_top_weight: 2.5

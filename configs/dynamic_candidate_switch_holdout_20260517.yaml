@@ -1,0 +1,56 @@
+label_col: y_ret_a_stage_round1_open_open
+primary_model: master_alpha_official_rank
+primary_strategy: dynamic_risk_budget
+switch_strategy: top1_weight
+top_k: 5
+max_weight_sum: 1.0
+temperature: 0.8
+output_dir: outputs/holdout_20260517/dynamic_candidate_switch
+
+gate:
+  min_margin_z: 0.01
+  min_top_strength: 2.1
+  max_market_risk: 0.85
+  market_risk_penalty: 0.5
+
+models:
+  master_alpha_official_rank:
+    prediction_path: outputs/holdout_20260517/master_alpha_official_rank_predictions.csv
+    latest_prediction_path: outputs/holdout_20260517/master_alpha_official_rank_latest_predictions.csv
+  stockmixer_alpha_industry_lite:
+    prediction_path: outputs/holdout_20260517/stockmixer_alpha_industry_lite_predictions.csv
+    latest_prediction_path: outputs/holdout_20260517/stockmixer_alpha_industry_lite_latest_predictions.csv
+  stockmixer_alpha_fast:
+    prediction_path: outputs/holdout_20260517/stockmixer_alpha_fast_predictions.csv
+    latest_prediction_path: outputs/holdout_20260517/stockmixer_alpha_fast_latest_predictions.csv
+  stockmixer_alpha_industry_fast:
+    prediction_path: outputs/holdout_20260517/stockmixer_alpha_industry_fast_predictions.csv
+    latest_prediction_path: outputs/holdout_20260517/stockmixer_alpha_industry_fast_latest_predictions.csv
+  stockmixer_alpha_fast_portfolio_return:
+    prediction_path: outputs/holdout_20260517/stockmixer_alpha_fast_portfolio_return_predictions.csv
+    latest_prediction_path: outputs/holdout_20260517/stockmixer_alpha_fast_portfolio_return_latest_predictions.csv
+  timexer_alpha_fast:
+    prediction_path: outputs/holdout_20260517/timexer_alpha_fast_predictions.csv
+    latest_prediction_path: outputs/holdout_20260517/timexer_alpha_fast_latest_predictions.csv
+
+candidates:
+  - name: stockmixer_lite_timexer_rank
+    transform: rank
+    weights:
+      stockmixer_alpha_industry_lite: 0.75
+      timexer_alpha_fast: 0.25
+  - name: stockmixer_fast_lite_rank
+    transform: rank
+    weights:
+      stockmixer_alpha_fast: 0.25
+      stockmixer_alpha_industry_lite: 0.75
+  - name: stockmixer_industry_fast_lite_rank
+    transform: rank
+    weights:
+      stockmixer_alpha_industry_fast: 0.25
+      stockmixer_alpha_industry_lite: 0.75
+  - name: stockmixer_portfolio_lite_rank
+    transform: rank
+    weights:
+      stockmixer_alpha_fast_portfolio_return: 0.5
+      stockmixer_alpha_industry_lite: 0.5
