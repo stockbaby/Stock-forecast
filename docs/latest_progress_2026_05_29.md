@@ -1,78 +1,82 @@
-# Latest Progress 2026-05-29
+# 最新进展 2026-05-29
 
-## Current Decision
+## 当前判断
 
-This round shifts the project from "which single model do we believe" to "which Top1 signal deserves all-in today".
+本轮工作的核心已经从“固定相信哪个单模型”，转向“判断当天哪个 Top1 信号值得 all-in”。
 
-The current main candidate is:
+当前主候选路线是：
 
 ```text
-dynamic candidate switch
-+ StockMixer/ensemble challenger gate
-+ candidate Top1 agreement
-+ multi-seed Top1 diagnostics
-+ all-in when the gate passes
+动态候选切换
++ StockMixer/ensemble 挑战者 gate
++ 候选 Top1 一致性
++ 多 seed Top1 诊断
++ gate 通过时允许 all-in
 ```
 
-For the 2026-05-17 holdout replay:
+2026-05-17 holdout 回放窗口：
 
-- T: 2026-05-15
-- Buy: 2026-05-18 open
-- Sell: 2026-05-22 open
-- selected submission: `688981,1.0`
-- realized return: `0.101618`
+- T：2026-05-15
+- 买入：2026-05-18 开盘
+- 卖出：2026-05-22 开盘
+- 候选提交：`688981,1.0`
+- 实测收益：`0.101618`
 
-The key interpretation is not "always all-in". It is:
+关键结论不是“永远 all-in”，而是：
 
-- all-in is allowed when several model/blend candidates converge on the same Top1;
-- seed agreement is a confirmation and risk signal, not a standalone permission;
-- if model agreement is weak, fall back to `top2_softmax`, `dynamic_risk_budget`, or the MASTER/relation primary.
+- 当多个模型/融合候选收敛到同一只 Top1 时，允许 all-in；
+- seed 一致性是确认和风险信号，不是单独放行 all-in 的理由；
+- 如果模型分歧大，则退回 `top2_softmax`、`dynamic_risk_budget` 或 MASTER/relation 稳健主线。
 
-## What Changed
+## 本轮已完成
 
-Implemented in commit `2297f48`:
+对应提交：`2297f48`
 
-- `top1_weight` is now a first-class main-candidate strategy in MASTER and StockMixer configs.
-- MASTER and StockMixer support `top1_margin_weight` and `top1_margin_target`.
-- Training metrics now include `top1_margin_z` and `top1_portfolio_return`.
-- `scripts/dynamic_candidate_switch.py` now reads multi-seed score columns, computes seed Top1 votes, and gates all-in by candidate Top1 agreement.
-- `scripts/run_multiseed_top1_holdout.py` now emits all-in gate artifacts:
+- `top1_weight` 已正式进入 MASTER 和 StockMixer 的主候选策略，不再只是高风险备选。
+- MASTER 和 StockMixer 支持 `top1_margin_weight`、`top1_margin_target`。
+- 训练评估指标新增 `top1_margin_z` 和 `top1_portfolio_return`。
+- `scripts/dynamic_candidate_switch.py` 支持读取多 seed 分数列，计算 seed Top1 投票，并用候选 Top1 一致性控制 all-in。
+- `scripts/run_multiseed_top1_holdout.py` 会输出 all-in gate 诊断文件：
   - `outputs/holdout_20260517/multiseed_top1/allin_candidates.csv`
   - `outputs/holdout_20260517/multiseed_top1/allin_stock_gate.csv`
   - `outputs/holdout_20260517/multiseed_top1/allin_recommendation.json`
 
-## Holdout Evidence
+## Holdout 证据
 
-### Dynamic Candidate Switch
+### 动态候选切换
 
-Latest output:
+最新输出：
 
 ```csv
 stock_id,weight
 688981,1.0
 ```
 
-The latest gate selected `stockmixer_portfolio_lite_rank`.
+本轮 latest gate 选择的是：
 
-All four challenger candidates had the same Top1:
+```text
+stockmixer_portfolio_lite_rank
+```
+
+四个 challenger 候选的 Top1 都是：
 
 ```text
 688981
 ```
 
-So the candidate Top1 agreement was:
+因此候选 Top1 一致性为：
 
 ```text
 4 / 4 = 1.0
 ```
 
-This is the strongest support for all-in in this window.
+这是本窗口支持 all-in 的最强证据。
 
-### Multi-Seed Top1 Replay
+### 多 Seed Top1 回放
 
-Aggregate-only multi-seed leaderboard:
+aggregate-only 多 seed 排行：
 
-| Model | Mean Top1 | Mean return | Vote Top1 | Vote return | Vote share | Unique Top1 |
+| 模型 | mean Top1 | mean 收益 | vote Top1 | vote 收益 | vote share | Top1 唯一数 |
 |---|---:|---:|---:|---:|---:|---:|
 | stockmixer_lite | 688256 | 0.083750 | 688256 | 0.083750 | 0.667 | 2 |
 | lstm | 600958 | 0.010471 | 688981 | 0.101618 | 0.333 | 3 |
@@ -81,183 +85,182 @@ Aggregate-only multi-seed leaderboard:
 | master_official | 600276 | -0.041465 | 002460 | -0.034589 | 0.333 | 3 |
 | stockmixer_official | 300442 | -0.105785 | 300442 | -0.105785 | 0.667 | 2 |
 
-Important lesson:
+重要观察：
 
-- `stockmixer_lite -> 688256` has strong seed agreement and good return.
-- `stockmixer_official -> 300442` also has strong seed agreement but bad return.
-- Therefore seed-only agreement cannot be enough for all-in.
+- `stockmixer_lite -> 688256` 有较强 seed 一致性，且实测收益不错。
+- `stockmixer_official -> 300442` 也有较强 seed 一致性，但实测收益很差。
+- 所以 seed-only agreement 不能作为 all-in 的充分条件。
 
-The stricter aggregate gate reports `688981` as a high-return observation but keeps `allin_allowed=false`, because it is not independently supported by enough base-model votes in that aggregate table. This is intentional: the final all-in permission should come from cross-model/blend agreement, not one model's seed pattern alone.
+更严格的 aggregate gate 会把 `688981` 标记为高收益观察，但保持 `allin_allowed=false`。原因是它在 aggregate 表里没有足够的基础模型共同投票支持。这个设计是有意保守的：最终 all-in 权限应该主要来自跨模型/融合候选一致，而不是单个模型内部的 seed 共振。
 
-## Why MASTER Is Not Always Best Here
+## 为什么 MASTER 不总是最优
 
-MASTER remains the stable base model, but it is not necessarily the sharpest short-window Top1 model.
+MASTER 仍然是稳健底座，但它不一定是短窗口 Top1 最尖的模型。
 
-Likely reasons:
+可能原因：
 
-- MASTER was designed to learn broad cross-stock and market-guided structure, which helps average ranking quality but may smooth away short-term theme bursts.
-- The current competition window is only about five trading days, so the payoff is dominated by whether the model catches the single strongest short-term target.
-- StockMixer/ensemble candidates can be more reactive because they mix stock, time, and indicator signals with less architectural inertia.
-- Relation postprocess is rule/statistics based and can improve robustness, but it may also dilute a very sharp Top1 unless the gate explicitly allows concentration.
+- MASTER 更擅长学习较宽的跨股票结构和 market-guided 关系，有利于平均排序质量，但可能会平滑掉短期主题爆发。
+- 当前比赛窗口只有约 5 个交易日，最终收益主要取决于能不能抓到单日最强的那只股票。
+- StockMixer/ensemble 候选可能更敏捷，因为它们用较轻结构混合 stock、time、indicator 信号，短线响应更快。
+- relation postprocess 是规则/统计后处理，可以提高稳健性，但如果没有显式 all-in gate，也可能稀释很尖的 Top1 信号。
 
-So the current best posture is:
+所以当前最合理的定位是：
 
 ```text
-MASTER/relation = stable default
-StockMixer/ensemble = short-window challenger
-gate = decides whether to all-in or fall back
+MASTER/relation = 稳健默认底座
+StockMixer/ensemble = 短窗口挑战者
+gate = 决定 all-in 还是回退稳健组合
 ```
 
-## Follow-Up Research
+## 后续调研方向
 
-### P0: Expand Holdout Windows
+### P0：扩展 Holdout 窗口
 
-Do not tune the gate on only the 2026-05-15 window.
+不能只在 2026-05-15 这一个窗口上调 gate。
 
-Next experiments:
+下一步实验：
 
-- replay multiple recent T dates, for example 2026-04-17, 2026-04-24, 2026-04-30, 2026-05-08, 2026-05-15;
-- run the same multi-seed and dynamic-switch pipeline on each;
-- record whether candidate agreement predicts profitable all-in.
+- 回放多个近期 T 日，例如 2026-04-17、2026-04-24、2026-04-30、2026-05-08、2026-05-15；
+- 每个窗口都跑同一套 multi-seed 和 dynamic-switch 流程；
+- 记录“候选一致性”是否真的能预测 profitable all-in。
 
-Deliverable:
+建议产出：
 
 ```text
 scripts/run_recent_holdout_matrix.py
 docs/top1_gate_holdout_matrix.md
 ```
 
-Decision metric:
+核心指标：
 
 ```text
-all-in hit rate, mean return, p05 return, negative rate, max drawdown
+all-in 命中率、平均收益、p05 收益、负收益比例、最大回撤
 ```
 
-### P1: Make The Gate Learnable
+### P1：把 Gate 做成可学习选择器
 
-The current gate is rule-based. That is good for transparency, but it cannot learn interactions such as:
+当前 gate 是规则式的，好处是透明，但无法学习复杂交互，例如：
 
-- high margin but bad liquidity;
-- model agreement in the same architecture family;
-- strong sector momentum but weak index regime;
-- seed agreement that is useful for one model but dangerous for another.
+- margin 高但流动性差；
+- 多个候选一致，但其实来自同一模型家族；
+- 行业动量强，但指数 regime 弱；
+- seed 一致性对某个模型有用，对另一个模型反而危险。
 
-Next version:
+下一版可以训练一个小型 logistic/GBDT selector：
 
-- train a small logistic/GBDT selector on historical daily records;
-- target: whether all-in Top1 beats fallback portfolio on that date;
-- features:
-  - candidate Top1 agreement count/share;
-  - seed vote share;
-  - top1 margin z;
-  - top strength;
-  - model family;
-  - market risk/trend;
-  - industry collective momentum;
-  - volume confirmation;
-  - liquidity and volatility.
+- 目标：当天 all-in Top1 是否优于 fallback 组合；
+- 特征：
+  - candidate Top1 agreement count/share；
+  - seed vote share；
+  - top1 margin z；
+  - top strength；
+  - model family；
+  - market risk/trend；
+  - industry collective momentum；
+  - volume confirmation；
+  - liquidity / volatility。
 
-Keep the learned selector small and walk-forward only. It should decide the portfolio mode, not replace the stock model.
+注意：selector 要小，只能 walk-forward 训练。它只决定组合模式，不替代股票预测模型。
 
-### P2: Top1-Oriented Training
+### P2：继续强化 Top1 导向训练
 
-The new `top1_margin_weight` is only the first step.
+这次新增的 `top1_margin_weight` 只是第一步。
 
-Next losses worth implementing:
+后续值得实现的 loss：
 
-- `top_hit_loss`: directly rewards the true top label being near the top predictions.
-- pairwise top-vs-bottom loss: force the true top bucket above the bottom bucket.
-- listwise Top1 temperature loss: a sharper version of ListNet focused on the head.
-- Top1 margin calibration: require score gap only when labels are also separated enough, to avoid forcing noisy days.
+- `top_hit_loss`：直接奖励真实头部股票进入预测头部；
+- pairwise top-vs-bottom loss：强制真实头部桶高于底部桶；
+- listwise Top1 temperature loss：更尖锐地优化榜首位置；
+- Top1 margin calibration：只在真实 label 也拉开差距时要求预测分数拉开，避免噪声日硬拉 margin。
 
-Training rule:
+训练规则：
 
 ```text
-batch by same date
-optimize cross-sectional ranking
-validate by Top1/all-in return, not only RankIC
+按同日截面 batch
+优化截面排序
+验证时重点看 Top1/all-in return，而不只看 RankIC
 ```
 
-### P3: Short-Window Theme And Confirmation Features
+### P3：短窗口主题/量价确认特征
 
-The all-in strategy needs "why this stock now" features.
+all-in 策略需要回答“为什么今天就是这只股票”。
 
-Add or strengthen:
+建议新增或强化：
 
-- 3/5/10 day relative strength vs HS300;
-- turnover and amount acceleration;
-- gap/open strength where available;
-- industry collective momentum;
-- same-industry breadth and volume confirmation;
-- limit-up proximity / recent breakout style features if data supports them;
-- liquidity penalty for fragile spikes.
+- 3/5/10 日相对 HS300 强度；
+- 换手率和成交额加速；
+- 如果数据支持，加入 gap/open 强度；
+- 行业 collective momentum；
+- 同行业 breadth 和 volume confirmation；
+- 涨停接近度 / 近期突破风格特征；
+- 对脆弱拉升加入流动性惩罚。
 
-These should feed both the models and the gate.
+这些特征应同时进入模型和 gate。
 
-### P4: Relation Layer Upgrade
+### P4：升级 Relation Layer
 
-Current relation postprocess is effective but manual.
+当前 relation postprocess 有效，但仍然偏手工。
 
-Next relation directions:
+下一步 relation 方向：
 
-- industry relation;
-- beta-neighbor relation;
-- volatility-neighbor relation;
-- liquidity-neighbor relation;
-- return-correlation neighbors;
-- hidden concept neighbors inspired by HIST-style relation modeling.
+- 行业关系；
+- beta 邻居关系；
+- 波动率邻居关系；
+- 流动性邻居关系；
+- 历史收益相关性邻居；
+- 参考 HIST 思路的 hidden concept neighbors。
 
-Near-term implementation should stay light:
+近期实现仍建议保持轻量：
 
 ```text
-do relation scoring as postprocess first
-promote only robust signals into model features later
+先作为 relation postprocess 验证
+只有稳健有效的关系信号再提升为模型特征
 ```
 
-### P5: Drift And Online Adaptation
+### P5：漂移与在线适配
 
-Recent windows matter more than older windows, but naive recent-only training has been unstable.
+近期窗口比远期历史更重要，但 naive recent-only training 已经表现不稳。
 
-Research direction:
+可研究方向：
 
-- keep full-history model as anchor;
-- add a recent-window adapter or residual head;
-- walk-forward tune adapter weight;
-- compare against DoubleAdapt-style incremental adaptation.
+- 保留 full-history 模型作为 anchor；
+- 增加 recent-window adapter 或 residual head；
+- walk-forward 调 adapter 权重；
+- 对比 DoubleAdapt 式增量适配。
 
-This is useful because the task window is short and market regimes move.
+这条线适合解决短窗口比赛中 market regime 快速切换的问题。
 
-### P6: Final Submission Policy
+### P6：最终提交策略
 
-The final submitter should not be a fixed model name.
+最终提交不应该固定成某个模型名。
 
-Recommended policy:
+推荐流程：
 
 ```text
-1. Generate MASTER/relation stable submission.
-2. Generate StockMixer and ensemble challenger submissions.
-3. Run multi-seed diagnostics.
-4. Run dynamic candidate switch.
-5. If cross-model/blend Top1 agreement is strong, submit all-in.
-6. If disagreement is high, submit top2/top3 or MASTER/relation.
-7. Keep equal-weight Top5 as conservative backup.
+1. 生成 MASTER/relation 稳健提交。
+2. 生成 StockMixer 和 ensemble challenger 提交。
+3. 运行 multi-seed 诊断。
+4. 运行 dynamic candidate switch。
+5. 如果跨模型/融合候选 Top1 一致性强，提交 all-in。
+6. 如果分歧大，提交 top2/top3 或 MASTER/relation。
+7. 保留等权 Top5 作为保守备选。
 ```
 
-## External References Checked
+## 已检查外部参考
 
-- MASTER official code: https://github.com/SJTU-DMTai/MASTER
-- MASTER paper page: https://ojs.aaai.org/index.php/AAAI/article/view/27767
-- StockMixer official code: https://github.com/SJTU-DMTai/StockMixer
-- StockMixer paper page: https://mlanthology.org/aaai/2024/fan2024aaai-stockmixer/
-- HIST official code: https://github.com/Wentao-Xu/HIST
-- HIST arXiv: https://arxiv.org/abs/2110.13716
-- DoubleAdapt official code: https://github.com/SJTU-DMTai/DoubleAdapt
-- DoubleAdapt arXiv: https://arxiv.org/abs/2306.09862
+- MASTER 官方代码：https://github.com/SJTU-DMTai/MASTER
+- MASTER 论文页：https://ojs.aaai.org/index.php/AAAI/article/view/27767
+- StockMixer 官方代码：https://github.com/SJTU-DMTai/StockMixer
+- StockMixer 论文页：https://mlanthology.org/aaai/2024/fan2024aaai-stockmixer/
+- HIST 官方代码：https://github.com/Wentao-Xu/HIST
+- HIST arXiv：https://arxiv.org/abs/2110.13716
+- DoubleAdapt 官方代码：https://github.com/SJTU-DMTai/DoubleAdapt
+- DoubleAdapt arXiv：https://arxiv.org/abs/2306.09862
 
-## Immediate Next Actions
+## 立即执行项
 
-1. Build a multi-window holdout matrix runner.
-2. Use it to tune only gate thresholds, not model weights.
-3. Train the Top1-margin MASTER/StockMixer configs for real, then rerun the same matrix.
-4. Add short-window theme/volume confirmation features.
-5. Promote the rule gate to a tiny walk-forward selector if rule thresholds remain brittle.
+1. 做一个多窗口 holdout matrix runner。
+2. 用多窗口结果只调 gate 阈值，不调模型权重。
+3. 真实训练 Top1-margin MASTER/StockMixer 配置，再跑同一套 matrix。
+4. 增加短窗口主题/量价确认特征。
+5. 如果规则阈值仍然脆弱，把 rule gate 升级成小型 walk-forward selector。

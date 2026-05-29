@@ -1,8 +1,8 @@
 # Stock Forecast for CSI 300 Competition
 
-## Latest Update 2026-05-29
+## 最新进展 2026-05-29
 
-See the current Top1/all-in gate status and next research direction:
+当前 Top1/all-in gate 状态和后续调研方向见：
 
 ```text
 docs/latest_progress_2026_05_29.md
@@ -12,19 +12,19 @@ docs/code_review_meeting_2026_05_07.md
 docs/code_review_meeting_2026_05_07.pptx
 ```
 
-Current holdout replay candidate:
+当前 holdout 回放候选：
 
 ```csv
 stock_id,weight
 688981,1.0
 ```
 
-Key updates:
+关键更新：
 
-- Added Top1-focused all-in gate and dynamic candidate switching.
-- Added multi-seed Top1 holdout evaluation and all-in recommendation artifacts.
-- Added Top1 margin training support for MASTER and StockMixer.
-- Promoted `top1_weight` from high-risk backup to a first-class main candidate when model/blend agreement is strong.
+- 新增 Top1 导向 all-in gate 和动态候选切换。
+- 新增多 seed Top1 holdout 评估和 all-in 推荐诊断文件。
+- MASTER / StockMixer 支持 Top1 margin 训练。
+- 当模型/融合结果一致性强时，`top1_weight` 从高风险备选升级为主候选。
 - Fixed true latest inference for unlabeled `T=2026-04-24`.
 - Added walk-forward online-window simulation.
 - Added concentrated and confidence-aware portfolio allocation.
