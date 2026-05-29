@@ -55,7 +55,10 @@ def _normalize_stock_id(value: object) -> str:
 
 
 def _read_price_frame(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path, encoding="utf-8-sig")
+    try:
+        df = pd.read_csv(path, encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        df = pd.read_csv(path, encoding="gbk")
     out = df[[COL_STOCK, COL_DATE, COL_OPEN]].copy()
     out[COL_STOCK] = out[COL_STOCK].map(_normalize_stock_id)
     out[COL_DATE] = pd.to_datetime(out[COL_DATE])
@@ -201,6 +204,10 @@ def main() -> None:
     parser.add_argument("--sell-offset", type=int, default=5)
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--aggregate-only", action="store_true")
+    parser.add_argument("--allin-min-model-votes", type=int, default=2)
+    parser.add_argument("--allin-min-seed-vote-share", type=float, default=0.5)
+    parser.add_argument("--allin-min-strong-seed-vote-share", type=float, default=0.8)
+    parser.add_argument("--allin-min-margin-z", type=float, default=0.15)
     args = parser.parse_args()
 
     selected_models = [item.strip() for item in args.models.split(",") if item.strip()]
@@ -233,6 +240,80 @@ def main() -> None:
             }
         )
     leaderboard_df = pd.DataFrame(leaderboard).sort_values("mean_top1_return", ascending=False)
+    allin_candidates = []
+    for row in leaderboard:
+        allin_candidates.append(
+            {
+                "source": f"{row['model']}::mean",
+                "model": row["model"],
+                "stock_id": row["mean_top1_stock"],
+                "return": row["mean_top1_return"],
+                "seed_vote_share": row["vote_share"] if row["mean_top1_stock"] == row["vote_top1_stock"] else 0.0,
+                "margin_z": row["mean_top1_margin_z"],
+                "top_strength": row["mean_top1_strength"],
+            }
+        )
+        allin_candidates.append(
+            {
+                "source": f"{row['model']}::vote",
+                "model": row["model"],
+                "stock_id": row["vote_top1_stock"],
+                "return": row["vote_top1_return"],
+                "seed_vote_share": row["vote_share"],
+                "margin_z": row["mean_top1_margin_z"],
+                "top_strength": row["mean_top1_strength"],
+            }
+        )
+    candidate_df = pd.DataFrame(allin_candidates)
+    stock_rows = []
+    for stock_id, group in candidate_df.groupby("stock_id"):
+        model_votes = int(group["model"].nunique())
+        max_seed_vote_share = float(group["seed_vote_share"].max())
+        max_margin_z = float(group["margin_z"].max())
+        cross_model_pass = (
+            model_votes >= args.allin_min_model_votes
+            and max_seed_vote_share >= args.allin_min_seed_vote_share
+            and max_margin_z >= args.allin_min_margin_z
+        )
+        strong_seed_observation = (
+            max_seed_vote_share >= args.allin_min_strong_seed_vote_share
+            and max_margin_z >= args.allin_min_margin_z
+        )
+        stock_rows.append(
+            {
+                "stock_id": stock_id,
+                "model_votes": model_votes,
+                "sources": group["source"].tolist(),
+                "max_seed_vote_share": max_seed_vote_share,
+                "max_margin_z": max_margin_z,
+                "max_top_strength": float(group["top_strength"].max()),
+                "realized_return": _realized_return(price_df, stock_id, buy_date, sell_date),
+                "cross_model_pass": bool(cross_model_pass),
+                "strong_seed_observation": bool(strong_seed_observation),
+                "allin_allowed": bool(cross_model_pass),
+            }
+        )
+    stock_gate_df = pd.DataFrame(stock_rows)
+    if not stock_gate_df.empty:
+        stock_gate_df["gate_score"] = (
+            stock_gate_df["model_votes"]
+            + 2.0 * stock_gate_df["max_seed_vote_share"]
+            + 0.5 * stock_gate_df["max_margin_z"]
+        )
+        eligible = stock_gate_df[stock_gate_df["allin_allowed"]].copy()
+        ranked_gate = eligible if not eligible.empty else stock_gate_df
+        ranked_gate = ranked_gate.sort_values(["allin_allowed", "gate_score"], ascending=[False, False])
+        recommendation = ranked_gate.iloc[0].to_dict()
+    else:
+        recommendation = {
+            "stock_id": None,
+            "model_votes": 0,
+            "sources": [],
+            "max_seed_vote_share": 0.0,
+            "max_margin_z": 0.0,
+            "realized_return": float("nan"),
+            "allin_allowed": False,
+        }
     summary = {
         "trade_date": args.trade_date,
         "buy_date": str(pd.Timestamp(buy_date).date()),
@@ -240,10 +321,26 @@ def main() -> None:
         "seeds": seeds,
         "results": results,
         "leaderboard": leaderboard_df.to_dict(orient="records"),
+        "allin_gate": {
+            "min_model_votes": args.allin_min_model_votes,
+            "min_seed_vote_share": args.allin_min_seed_vote_share,
+            "min_strong_seed_vote_share": args.allin_min_strong_seed_vote_share,
+            "min_margin_z": args.allin_min_margin_z,
+            "recommendation": recommendation,
+            "candidates": candidate_df.to_dict(orient="records"),
+            "stock_gate": stock_gate_df.to_dict(orient="records"),
+        },
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     leaderboard_df.to_csv(output_dir / "leaderboard.csv", index=False)
+    candidate_df.to_csv(output_dir / "allin_candidates.csv", index=False)
+    stock_gate_df.to_csv(output_dir / "allin_stock_gate.csv", index=False)
+    (output_dir / "allin_recommendation.json").write_text(
+        json.dumps(summary["allin_gate"], ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     print(leaderboard_df.to_string(index=False))
+    print(json.dumps(summary["allin_gate"]["recommendation"], ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

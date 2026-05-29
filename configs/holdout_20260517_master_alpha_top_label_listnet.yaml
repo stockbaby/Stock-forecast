@@ -60,6 +60,8 @@ deep:
   top_label_top_k: 5
   top_label_top_weight: 2.5
   top_label_temperature: 0.7
+  top1_margin_weight: 0.04
+  top1_margin_target: 0.5
   label_clip: 0.18
   validation_strategy: top2_softmax
 output:

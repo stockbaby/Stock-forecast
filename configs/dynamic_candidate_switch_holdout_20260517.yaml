@@ -12,6 +12,10 @@ gate:
   min_top_strength: 2.1
   max_market_risk: 0.85
   market_risk_penalty: 0.5
+  min_candidate_top1_agreement: 2
+  min_seed_vote_share: 0.0
+  require_mean_top_in_seed_top1: false
+  seed_vote_bonus: 0.5
 
 models:
   master_alpha_official_rank:

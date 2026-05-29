@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.portfolio.construct import build_top_k_submission, select_best_portfolio_strategy
 from src.training.dataset_builder import DatasetBuildConfig, build_model_dataset
-from src.training.metrics import precision_at_k, rank_ic, top_k_portfolio_return
+from src.training.metrics import precision_at_k, rank_ic, top1_margin_z, top1_portfolio_return, top_k_portfolio_return
 from src.training.train_baseline import _default_time_split, save_dataframe, validate_submission
 from src.models.deep_sequence import build_lstm_sequences, build_prediction_sequences, train_lstm_regressor
 from src.utils.config import load_yaml_config
@@ -114,6 +114,12 @@ def main() -> None:
             cfg["label"]["name"],
             "score",
             cfg["training"]["top_k"],
+        ),
+        "top1_margin_z": top1_margin_z(valid_pred_df.rename(columns={"label": cfg["label"]["name"]}), "score"),
+        "top1_portfolio_return": top1_portfolio_return(
+            valid_pred_df.rename(columns={"label": cfg["label"]["name"]}),
+            cfg["label"]["name"],
+            "score",
         ),
         "top_k_portfolio_return": top_k_portfolio_return(
             valid_pred_df.rename(columns={"label": cfg["label"]["name"]}),

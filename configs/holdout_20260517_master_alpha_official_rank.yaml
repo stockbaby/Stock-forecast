@@ -25,6 +25,10 @@ training:
   recent_train_days: 90
 portfolio:
   strategies:
+  - top1_weight
+  - top2_softmax
+  - confidence_topk
+  - dynamic_risk_budget
   - proportional_positive_thr0.0
   - proportional_positive_thr0.002
   - equal_weight

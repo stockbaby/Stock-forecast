@@ -44,6 +44,32 @@ def top_hit_rate(df: pd.DataFrame, label_col: str, score_col: str, true_top_k: i
     return float(sum(hits) / len(hits))
 
 
+def top1_margin_z(df: pd.DataFrame, score_col: str) -> float:
+    margins: list[float] = []
+    for _, group in df[[score_col, "date"]].dropna().groupby("date"):
+        if len(group) < 2:
+            continue
+        scores = group[score_col].sort_values(ascending=False).to_numpy(dtype=float)
+        std = float(scores.std())
+        scale = std if std > 1e-8 else 1.0
+        margins.append(float((scores[0] - scores[1]) / scale))
+    if not margins:
+        return math.nan
+    return float(sum(margins) / len(margins))
+
+
+def top1_portfolio_return(df: pd.DataFrame, label_col: str, score_col: str) -> float:
+    returns: list[float] = []
+    for _, group in df[[label_col, score_col, "date"]].dropna().groupby("date"):
+        if len(group) < 1:
+            continue
+        top = group.nlargest(1, score_col)
+        returns.append(float(top[label_col].iloc[0]))
+    if not returns:
+        return math.nan
+    return float(sum(returns) / len(returns))
+
+
 def top_k_portfolio_return(df: pd.DataFrame, label_col: str, score_col: str, k: int) -> float:
     returns: list[float] = []
     for _, group in df[[label_col, score_col, "date"]].dropna().groupby("date"):

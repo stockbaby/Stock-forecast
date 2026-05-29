@@ -25,6 +25,10 @@ training:
   recent_train_days: 90
 portfolio:
   strategies:
+  - top1_weight
+  - top2_softmax
+  - confidence_topk
+  - dynamic_risk_budget
   - proportional_positive_thr0.0
   - proportional_positive_thr0.002
   - equal_weight
@@ -58,6 +62,11 @@ deep:
   official_top_k_weight: 2.0
   official_base_weight: 1.0
   official_temperature: 1.0
+  top_hit_weight: 0.04
+  top_hit_k: 2
+  top_hit_temperature: 0.25
+  top1_margin_weight: 0.03
+  top1_margin_target: 0.5
   label_clip: 0.18
   patch_sizes:
   - 5

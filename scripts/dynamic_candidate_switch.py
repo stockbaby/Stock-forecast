@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import sys
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +27,8 @@ def _load_prediction(path: str | Path, label_col: str) -> pd.DataFrame:
     df = pd.read_csv(path, dtype={"stock_id": str})
     if "label" in df.columns and label_col not in df.columns:
         df = df.rename(columns={"label": label_col})
+    if "score" not in df.columns and "score_mean" in df.columns:
+        df = df.rename(columns={"score_mean": "score"})
     missing = {"stock_id", "date", "score"}.difference(df.columns)
     if missing:
         raise ValueError(f"{path} missing columns: {sorted(missing)}")
@@ -33,6 +36,8 @@ def _load_prediction(path: str | Path, label_col: str) -> pd.DataFrame:
     out["stock_id"] = out["stock_id"].map(_normalize_stock_id)
     out["date"] = pd.to_datetime(out["date"])
     out["score"] = pd.to_numeric(out["score"], errors="coerce")
+    for col in [col for col in out.columns if col.startswith("score_seed_")]:
+        out[col] = pd.to_numeric(out[col], errors="coerce")
     if label_col in out.columns:
         out[label_col] = pd.to_numeric(out[label_col], errors="coerce")
     return out
@@ -59,11 +64,19 @@ def _blend_models(
 ) -> pd.DataFrame:
     merged: pd.DataFrame | None = None
     label_source: pd.Series | None = None
+    seed_score_cols: list[str] = []
     for model_name, weight in model_weights.items():
         if model_name not in model_frames:
             raise KeyError(f"Candidate references unknown model: {model_name}")
-        frame = model_frames[model_name][["stock_id", "date", "score", *([label_col] if label_col in model_frames[model_name].columns else [])]].copy()
+        source = model_frames[model_name]
+        model_seed_cols = [col for col in source.columns if col.startswith("score_seed_")]
+        frame = source[["stock_id", "date", "score", *model_seed_cols, *([label_col] if label_col in source.columns else [])]].copy()
         frame = frame.rename(columns={"score": f"score_{model_name}"})
+        renamed_seed_cols = {}
+        for col in model_seed_cols:
+            renamed_seed_cols[col] = f"{col}_{model_name}"
+        frame = frame.rename(columns=renamed_seed_cols)
+        seed_score_cols.extend(renamed_seed_cols.values())
         if label_col in frame.columns:
             label_source = frame[label_col]
             frame = frame.drop(columns=[label_col])
@@ -83,7 +96,7 @@ def _blend_models(
             labels = frame[["stock_id", "date", label_col]].dropna(subset=[label_col]).copy()
             merged = merged.merge(labels, on=["stock_id", "date"], how="left")
             break
-    return merged[["stock_id", "date", "score", *([label_col] if label_col in merged.columns else [])]].copy()
+    return merged[["stock_id", "date", "score", *seed_score_cols, *([label_col] if label_col in merged.columns else [])]].copy()
 
 
 def _score_profile(daily: pd.DataFrame, score_col: str) -> dict:
@@ -100,11 +113,29 @@ def _score_profile(daily: pd.DataFrame, score_col: str) -> dict:
     scale = score_std if score_std > 1e-8 else 1.0
     margin = float((scores[0] - scores[1]) / scale) if len(scores) > 1 else math.inf
     top_strength = float((scores[0] - np.mean(scores)) / scale)
+    seed_cols = [col for col in ranked.columns if col.startswith("score_seed_")]
+    seed_top_stocks = []
+    for col in seed_cols:
+        seed_ranked = ranked.dropna(subset=[col]).sort_values(col, ascending=False)
+        if not seed_ranked.empty:
+            seed_top_stocks.append(str(seed_ranked.iloc[0]["stock_id"]))
+    vote_share = 0.0
+    seed_vote_count = 0
+    mean_top_in_seed_top1 = False
+    if seed_top_stocks:
+        vote_counts = Counter(seed_top_stocks)
+        seed_vote_count = int(vote_counts.get(str(ranked.iloc[0]["stock_id"]), 0))
+        vote_share = float(seed_vote_count / len(seed_top_stocks))
+        mean_top_in_seed_top1 = seed_vote_count > 0
     return {
         "top_stock": str(ranked.iloc[0]["stock_id"]),
         "margin_z": margin,
         "top_strength": top_strength,
         "score_std": score_std,
+        "seed_top1_vote_share": vote_share,
+        "seed_top1_vote_count": seed_vote_count,
+        "seed_top1_count": len(seed_top_stocks),
+        "mean_top_in_seed_top1": mean_top_in_seed_top1,
     }
 
 
@@ -124,9 +155,15 @@ def _candidate_passes(profile: dict, market: dict, gate: dict) -> tuple[bool, fl
         reasons.append("low_top_strength")
     if market["market_risk"] > float(gate.get("max_market_risk", 0.85)):
         reasons.append("market_risk")
+    if profile.get("seed_top1_count", 0) > 0:
+        if profile.get("seed_top1_vote_share", 0.0) < float(gate.get("min_seed_vote_share", 0.0)):
+            reasons.append("low_seed_vote")
+        if gate.get("require_mean_top_in_seed_top1", False) and not profile.get("mean_top_in_seed_top1", False):
+            reasons.append("mean_top_not_seed_top1")
     gate_score = (
         float(profile["margin_z"])
         + 0.5 * float(profile["top_strength"])
+        + float(gate.get("seed_vote_bonus", 0.5)) * float(profile.get("seed_top1_vote_share", 0.0))
         - float(gate.get("market_risk_penalty", 0.5)) * float(market["market_risk"])
     )
     return not reasons, gate_score, reasons
@@ -178,6 +215,17 @@ def _choose_daily(
                 **profile,
             }
         )
+    top_counts = Counter(item["top_stock"] for item in options if item["top_stock"])
+    for item in options:
+        agreement = top_counts.get(item["top_stock"], 0)
+        item["candidate_top1_agreement"] = int(agreement)
+        item["candidate_top1_agreement_share"] = float(agreement / max(len(options), 1))
+        if agreement < int(cfg.get("gate", {}).get("min_candidate_top1_agreement", 1)):
+            item["passed"] = False
+            item["reasons"] = [*item["reasons"], "low_candidate_agreement"]
+        if item["candidate_top1_agreement_share"] < float(cfg.get("gate", {}).get("min_candidate_top1_agreement_share", 0.0)):
+            item["passed"] = False
+            item["reasons"] = [*item["reasons"], "low_candidate_agreement_share"]
     passed_options = [item for item in options if item["passed"]]
     if passed_options:
         selected = max(passed_options, key=lambda item: item["gate_score"])

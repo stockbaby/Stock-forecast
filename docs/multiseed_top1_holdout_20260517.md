@@ -32,6 +32,19 @@ The result supports using multi-seed consistency as an all-in filter, but not na
 - mean Top1 margin/strength;
 - cross-model agreement with StockMixer/ensemble candidates.
 
+## Gate Update
+
+The code now separates two all-in signals:
+
+- Dynamic candidate switch: all-in is allowed when multiple challenger blends agree on the same Top1 and the selected candidate passes margin/strength/risk checks. On this holdout, four challenger blends agree on `688981`, so the dynamic switch output is all-in `688981`.
+- Multi-seed Top1 gate: seed agreement is used as a confirmation/denial feature, not as a standalone all-in pass. This avoids promoting bad but internally consistent single-model picks such as `stockmixer_official -> 300442` in this window.
+
+The aggregate-only multi-seed gate therefore reports `688981` as a high-return observation but `allin_allowed=false` under the stricter cross-model + seed-consistency rule. The production interpretation is:
+
+- all-in is appropriate when cross-model/blend agreement is strong;
+- seed-only agreement should be treated as a warning/confirmation signal;
+- if both cross-model agreement and seed agreement are weak, fall back to `dynamic_risk_budget`, `top2_softmax`, or the MASTER/relation primary.
+
 Artifacts:
 
 - `outputs/holdout_20260517/multiseed_top1/leaderboard.csv`

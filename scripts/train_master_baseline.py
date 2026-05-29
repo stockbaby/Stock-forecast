@@ -15,7 +15,7 @@ from src.models.deep_sequence import build_lstm_sequences, build_prediction_sequ
 from src.models.master import MasterTrainConfig, train_master_regressor
 from src.portfolio.construct import build_top_k_submission, select_best_portfolio_strategy
 from src.training.dataset_builder import DatasetBuildConfig, build_model_dataset
-from src.training.metrics import precision_at_k, rank_ic, top_hit_rate, top_k_portfolio_return
+from src.training.metrics import precision_at_k, rank_ic, top1_margin_z, top1_portfolio_return, top_hit_rate, top_k_portfolio_return
 from src.training.train_baseline import _default_time_split, assert_prediction_date, save_dataframe, validate_submission
 from src.utils.config import load_yaml_config
 
@@ -119,6 +119,8 @@ def main() -> None:
         top_label_top_k=cfg["deep"].get("top_label_top_k", cfg["training"]["top_k"]),
         top_label_top_weight=cfg["deep"].get("top_label_top_weight", 2.0),
         top_label_temperature=cfg["deep"].get("top_label_temperature", 0.7),
+        top1_margin_weight=cfg["deep"].get("top1_margin_weight", 0.0),
+        top1_margin_target=cfg["deep"].get("top1_margin_target", 0.5),
         label_clip=cfg["deep"].get("label_clip", 0.18),
         seed=cfg["seed"],
     )
@@ -138,6 +140,8 @@ def main() -> None:
         "precision_at_k": precision_at_k(eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]),
         "top1_hit_rate": top_hit_rate(eval_df, cfg["label"]["name"], "score", true_top_k=1, pred_top_k=1),
         "top2_hit_rate": top_hit_rate(eval_df, cfg["label"]["name"], "score", true_top_k=2, pred_top_k=2),
+        "top1_margin_z": top1_margin_z(eval_df, "score"),
+        "top1_portfolio_return": top1_portfolio_return(eval_df, cfg["label"]["name"], "score"),
         "top_k_portfolio_return": top_k_portfolio_return(
             eval_df, cfg["label"]["name"], "score", cfg["training"]["top_k"]
         ),

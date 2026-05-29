@@ -45,6 +45,8 @@ class StockMixerTrainConfig:
     top_label_top_k: int = 5
     top_label_top_weight: float = 2.0
     top_label_temperature: float = 0.7
+    top1_margin_weight: float = 0.0
+    top1_margin_target: float = 0.5
     label_clip: float = 0.2
     patch_sizes: tuple[int, ...] = (5, 10, 20, 30)
     seed: int = 42
@@ -235,6 +237,17 @@ def _top_hit_loss(pred, target, config: StockMixerTrainConfig, torch_module) -> 
     pred_probs = torch_module.softmax(pred / max(float(config.top_hit_temperature), 1e-3), dim=0)
     hit_mass = pred_probs[true_top_indices].sum().clamp(min=1e-12)
     return -torch_module.log(hit_mass)
+
+
+def _top1_margin_loss(pred, target, config: StockMixerTrainConfig, torch_module) -> object:
+    if pred.numel() < 2:
+        return pred.new_tensor(0.0)
+    true_top_idx = torch_module.argmax(target)
+    other_mask = torch_module.ones_like(pred, dtype=torch_module.bool)
+    other_mask[true_top_idx] = False
+    best_other = pred[other_mask].max()
+    margin = pred[true_top_idx] - best_other
+    return torch_module.nn.functional.softplus(float(config.top1_margin_target) - margin)
 
 
 def _top_label_weighted_listnet_loss(pred, target, config: StockMixerTrainConfig, torch_module) -> object:
@@ -464,6 +477,7 @@ def train_stockmixer_regressor(
             official_rank_loss = _official_weighted_rank_loss(preds, y_batch, config, torch)
             portfolio_return_loss = _portfolio_return_loss(preds, y_batch, config, torch)
             top_hit_loss = _top_hit_loss(preds, y_batch, config, torch)
+            top1_margin_loss = _top1_margin_loss(preds, y_batch, config, torch)
             top_label_listnet_loss = _top_label_weighted_listnet_loss(preds, y_batch, config, torch)
             loss = (
                 config.regression_weight * reg_loss
@@ -472,6 +486,7 @@ def train_stockmixer_regressor(
                 + config.official_rank_weight * official_rank_loss
                 + config.portfolio_return_weight * portfolio_return_loss
                 + config.top_hit_weight * top_hit_loss
+                + config.top1_margin_weight * top1_margin_loss
                 + config.top_label_listnet_weight * top_label_listnet_loss
             )
             loss.backward()
