@@ -150,6 +150,7 @@ def train_lstm_regressor(
     batch_size: int = 512,
     epochs: int = 8,
     learning_rate: float = 1e-3,
+    seed: int | None = None,
 ) -> tuple[Any, pd.DataFrame]:
     try:
         import torch
@@ -159,6 +160,11 @@ def train_lstm_regressor(
         raise RuntimeError(
             "torch is required for the LSTM baseline. Install PyTorch before running the deep baseline."
         ) from exc
+
+    if seed is not None:
+        torch.manual_seed(int(seed))
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(int(seed))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

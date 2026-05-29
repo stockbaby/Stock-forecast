@@ -71,6 +71,7 @@ def main() -> None:
         batch_size=cfg["deep"]["batch_size"],
         epochs=cfg["deep"]["epochs"],
         learning_rate=cfg["deep"]["learning_rate"],
+        seed=cfg.get("seed", 42),
     )
     inference_date_value = (
         cfg.get("output", {}).get("inference_date")
