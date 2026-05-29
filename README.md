@@ -1,24 +1,30 @@
 # Stock Forecast for CSI 300 Competition
 
-## Latest Update 2026-05-06
+## Latest Update 2026-05-29
 
-See the current post-replay status and next research direction:
+See the current Top1/all-in gate status and next research direction:
 
 ```text
+docs/latest_progress_2026_05_29.md
+docs/multiseed_top1_holdout_20260517.md
 docs/latest_progress_2026_05_06.md
 docs/code_review_meeting_2026_05_07.md
 docs/code_review_meeting_2026_05_07.pptx
 ```
 
-Current production result:
+Current holdout replay candidate:
 
 ```csv
 stock_id,weight
-002493,1.0
+688981,1.0
 ```
 
 Key updates:
 
+- Added Top1-focused all-in gate and dynamic candidate switching.
+- Added multi-seed Top1 holdout evaluation and all-in recommendation artifacts.
+- Added Top1 margin training support for MASTER and StockMixer.
+- Promoted `top1_weight` from high-risk backup to a first-class main candidate when model/blend agreement is strong.
 - Fixed true latest inference for unlabeled `T=2026-04-24`.
 - Added walk-forward online-window simulation.
 - Added concentrated and confidence-aware portfolio allocation.
