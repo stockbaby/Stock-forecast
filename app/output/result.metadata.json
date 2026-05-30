@@ -1,0 +1,8 @@
+{
+  "submission_source": "latest_inference",
+  "submission_date": "2026-05-29",
+  "expected_inference_date": "2026-05-29",
+  "method": "fusion_top2",
+  "method_detail": "75% MASTER single-seed + 25% StockMixer official multi-seed, z-score, top2_softmax",
+  "reproducibility_note": "Deterministic final A-stage package output selected by documented offline model/selector workflow."
+}

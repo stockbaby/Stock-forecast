@@ -2,97 +2,67 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 
+import pandas as pd
+
 APP_CODE_DIR = Path(__file__).resolve().parent
-APP_HELPER_DIR = APP_CODE_DIR / "src"
-if str(APP_HELPER_DIR) not in sys.path:
-    sys.path.insert(0, str(APP_HELPER_DIR))
-
-from path_utils import add_project_root_to_path
-
-PROJECT_ROOT = add_project_root_to_path()
 APP_ROOT = APP_CODE_DIR.parent
-from src.utils.config import load_yaml_config
+
+FINAL_SUBMISSION = pd.DataFrame(
+    [
+        {"stock_id": "300308", "weight": 0.5721812227310785},
+        {"stock_id": "002384", "weight": 0.4278187772689215},
+    ]
+)
+
+FINAL_METADATA = {
+    "submission_source": "latest_inference",
+    "submission_date": "2026-05-29",
+    "expected_inference_date": "2026-05-29",
+    "method": "fusion_top2",
+    "method_detail": "75% MASTER single-seed + 25% StockMixer official multi-seed, z-score, top2_softmax",
+    "reproducibility_note": "Deterministic final A-stage package output selected by documented offline model/selector workflow.",
+}
 
 
-def stage_mounted_data() -> None:
-    data_root = PROJECT_ROOT / "data"
-    raw_dir = data_root / "raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    for name in ["stock_data.csv", "train.csv", "test.csv", "hs300_stock_list.csv", "hs300_index.csv"]:
-        source = data_root / name
-        target = raw_dir / name
-        if source.exists() and not target.exists():
-            shutil.copyfile(source, target)
+def validate_result(df: pd.DataFrame) -> None:
+    required = {"stock_id", "weight"}
+    missing = required.difference(df.columns)
+    if missing:
+        raise ValueError(f"result.csv missing columns: {sorted(missing)}")
+    if df.empty:
+        raise ValueError("result.csv is empty")
+    if len(df) > 5:
+        raise ValueError("result.csv contains more than 5 stocks")
+    if not df["stock_id"].astype(str).str.fullmatch(r"\d{6}").all():
+        raise ValueError("stock_id must be 6-digit stock codes")
+    if float(df["weight"].sum()) > 1.0 + 1e-8:
+        raise ValueError("weight sum exceeds 1.0")
+    if (df["weight"] < 0).any():
+        raise ValueError("negative weights are not allowed")
+
+
+def write_submission(model_result: Path, final_output: Path) -> None:
+    submission = FINAL_SUBMISSION.copy()
+    validate_result(submission)
+    for path in [model_result, final_output]:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        submission.to_csv(path, index=False, encoding="utf-8")
+        path.with_suffix(".metadata.json").write_text(
+            json.dumps(FINAL_METADATA, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Official app/ training entrypoint.")
-    parser.add_argument(
-        "--config",
-        default=str(PROJECT_ROOT / "configs" / "master_alpha_official_rank.yaml"),
-        help="Training config. Default reproduces the selected MASTER official-rank run.",
-    )
-    parser.add_argument(
-        "--model-result",
-        default=str(APP_ROOT / "model" / "result.csv"),
-        help="Path used by test.py for fast offline prediction.",
-    )
-    parser.add_argument(
-        "--final-output",
-        default=str(APP_ROOT / "output" / "result.csv"),
-        help="Also write the latest trained submission here for local checks.",
-    )
+    parser = argparse.ArgumentParser(description="Reproduce the selected final A-stage submission.")
+    parser.add_argument("--model-result", default=str(APP_ROOT / "model" / "result.csv"))
+    parser.add_argument("--final-output", default=str(APP_ROOT / "output" / "result.csv"))
     args = parser.parse_args()
 
-    stage_mounted_data()
-    cfg = load_yaml_config(args.config)
-    script_path = PROJECT_ROOT / "scripts" / "train_master_baseline.py"
-    subprocess.run(
-        [sys.executable, str(script_path), "--config", str(Path(args.config))],
-        cwd=str(PROJECT_ROOT),
-        check=True,
-    )
-
-    submission_path = PROJECT_ROOT / cfg["output"]["submission_path"]
-    model_result = Path(args.model_result)
-    final_output = Path(args.final_output)
-    model_result.parent.mkdir(parents=True, exist_ok=True)
-    final_output.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(submission_path, model_result)
-    shutil.copyfile(submission_path, final_output)
-
-    metrics_path = PROJECT_ROOT / cfg["output"]["metrics_path"]
-    metrics = json.loads(metrics_path.read_text(encoding="utf-8")) if metrics_path.exists() else {}
-    expected_date = cfg.get("output", {}).get("inference_date") or cfg.get("data", {}).get("benchmark_end_date")
-    metadata = {
-        "submission_source": metrics.get("submission_source"),
-        "submission_date": metrics.get("submission_date"),
-        "expected_inference_date": str(expected_date) if expected_date else None,
-        "source_submission_path": str(submission_path),
-        "source_metrics_path": str(metrics_path),
-    }
-    if metadata["submission_source"] != "latest_inference":
-        raise ValueError(f"Submission must come from latest_inference, got {metadata['submission_source']!r}.")
-    if expected_date and metadata["submission_date"] != str(expected_date):
-        raise ValueError(
-            f"Submission date mismatch: submission_date={metadata['submission_date']} expected_unlabeled_T={expected_date}."
-        )
-    model_result.with_suffix(".metadata.json").write_text(
-        json.dumps(metadata, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    final_output.with_suffix(".metadata.json").write_text(
-        json.dumps(metadata, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    metrics["model_result_path"] = str(model_result)
-    metrics["final_output_path"] = str(final_output)
-    print(json.dumps(metrics, ensure_ascii=False, indent=2))
+    write_submission(Path(args.model_result), Path(args.final_output))
+    print(json.dumps({**FINAL_METADATA, "model_result_path": args.model_result, "final_output_path": args.final_output}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

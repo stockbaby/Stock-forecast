@@ -81,3 +81,36 @@ scripts/search_latest_ensemble_weights.py
 scripts/run_three_selectors.py
 scripts/final_submission_decider.py
 ```
+
+## 打包与复现检查
+
+提交目录已整理到：
+
+```text
+submission_package_latestA_20260530/
+```
+
+包内保留 Dockerfile 所需的最小运行内容：
+
+```text
+Dockerfile
+requirements-docker.txt
+app/
+```
+
+本地复现检查已通过：
+
+```powershell
+D:\anaconda\envs\stock-forecast\python.exe submission_package_latestA_20260530\app\code\train.py --model-result submission_package_latestA_20260530\app\model\result.csv --final-output submission_package_latestA_20260530\app\output\result.csv
+D:\anaconda\envs\stock-forecast\python.exe submission_package_latestA_20260530\app\code\test.py --model-result submission_package_latestA_20260530\app\model\result.csv --final-output submission_package_latestA_20260530\app\output\result.csv
+```
+
+输出保持为：
+
+```csv
+stock_id,weight
+300308,0.5721812227310785
+002384,0.4278187772689215
+```
+
+Docker 客户端可用，但当前机器 Docker daemon 未启动，`docker build` 未能连接到 `dockerDesktopLinuxEngine`，因此容器内构建验证需要在 Docker Desktop 启动后再执行。

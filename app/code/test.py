@@ -3,19 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import sys
 from pathlib import Path
 
 import pandas as pd
 
 APP_CODE_DIR = Path(__file__).resolve().parent
-APP_HELPER_DIR = APP_CODE_DIR / "src"
-if str(APP_HELPER_DIR) not in sys.path:
-    sys.path.insert(0, str(APP_HELPER_DIR))
-
-from path_utils import add_project_root_to_path
-
-PROJECT_ROOT = add_project_root_to_path()
 APP_ROOT = APP_CODE_DIR.parent
 
 
@@ -68,12 +60,9 @@ def main() -> None:
 
     model_result = Path(args.model_result)
     if not model_result.exists():
-        bundled_result = PROJECT_ROOT / "model" / "result.csv"
         app_bundled_result = APP_ROOT / "model" / "result.csv"
         if app_bundled_result.exists():
             model_result = app_bundled_result
-        elif bundled_result.exists():
-            model_result = bundled_result
         else:
             raise FileNotFoundError("Missing model/result.csv. Run train.sh before test.sh.")
     final_output = Path(args.final_output)

@@ -71,3 +71,6 @@ app/model/*
 !app/temp/.gitkeep
 !app/model/.gitkeep
 !app/model/result.csv
+!app/model/result.metadata.json
+!app/output/result.csv
+!app/output/result.metadata.json

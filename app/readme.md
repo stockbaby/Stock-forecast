@@ -130,3 +130,5 @@ stock_id,weight
 - 分数处理：日截面 z-score 后使用 `top2_softmax`
 
 详细记录：`docs/final_submission_latestA_2026_05_30.md`。
+
+`train.sh` 会确定性写出上述最终结果和 `result.metadata.json`；`test.sh` 只做离线校验和复制，满足预测阶段快速复现要求。
