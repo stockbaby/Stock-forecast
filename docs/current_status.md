@@ -1,5 +1,24 @@
 # Current Status
 
+## LatestA Final Submission - 2026-05-30
+
+The current files under `app/` are now the online A-stage latestA submission using data through 2026-05-29:
+
+```csv
+stock_id,weight
+300308,0.5721812227310785
+002384,0.4278187772689215
+```
+
+Decision:
+
+- Hard all-in gate: rejected all-in.
+- Portfolio selector: selected `fusion_top2`.
+- Fusion recipe: `75% MASTER single-seed + 25% StockMixer official multi-seed`, z-score transform, `top2_softmax`.
+- Five-window replay for the selected candidate: mean `3.6266%`, p05 `1.0165%`, negative rate `0.0%`.
+
+Main record: `docs/final_submission_latestA_2026_05_30.md`.
+
 ## 当前阶段
 
 项目已经完成从数据、模型、评估到 Docker 提交目录的闭环。正式提交后继续做了行业特征、组合优化、关系增强、TimeXer 和多模型融合实验。
