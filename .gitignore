@@ -22,6 +22,12 @@ Thumbs.db
 *.7z
 *.rar
 
+# Local competition submission packages and repaired exports
+submission_package*/
+submission_package_*/
+docs/*[Rr]epaired*.pdf
+docs/*diagnostic*.md
+
 # Model checkpoints and experiment artifacts
 *.ckpt
 *.pt
@@ -47,8 +53,12 @@ outputs/predictions/*
 outputs/submissions/*
 outputs/candidate_switch/
 outputs/holdout_*/
+outputs/final_submission_decider_latestA_*/
+outputs/latestA_ensemble_weights_*/
+outputs/three_selectors_latestA_*/
 outputs/method_validation*/
 outputs/online_window_sim*/
+outputs/repro_audit_*/
 outputs/real_a_stage_*.json
 outputs/real_a_stage_*.csv
 outputs/tmp_*.csv
