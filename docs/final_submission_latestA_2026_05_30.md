@@ -1,17 +1,17 @@
-# LatestA Final Submission - 2026-05-30
+# LatestA 最终提交说明 - 2026-05-30
 
-## Submission Scope
+## 提交口径
 
-This document records the final choice for the online A-stage submission window:
+本文记录线上赛 A 阶段 latestA 的最终提交选择：
 
-- Submission window: 2026-05-30 08:00 to 2026-05-31 23:59
-- Data cutoff: 2026-05-29
-- Target: T+5 open-to-open return after 2026-05-31
-- Final files:
+- 提交窗口：2026-05-30 08:00 至 2026-05-31 23:59
+- 数据截止日：2026-05-29
+- 预测目标：2026-05-31 之后的 T+5 开盘到开盘收益
+- 最终同步文件：
   - `app/model/result.csv`
   - `app/output/result.csv`
 
-## Final Submitted Portfolio
+## 最终提交组合
 
 ```csv
 stock_id,weight
@@ -19,56 +19,56 @@ stock_id,weight
 002384,0.4278187772689215
 ```
 
-The selected submission is the robust fusion candidate:
+最终选择的是稳健融合候选：
 
 ```text
-75% MASTER single-seed score
-25% StockMixer official multi-seed score
-cross-sectional z-score transform
-top2_softmax allocation
+75% MASTER single-seed 分数
+25% StockMixer official multi-seed 分数
+日截面 z-score 标准化
+top2_softmax 配权
 ```
 
-## Why This Was Selected
+## 选择理由
 
-The hard all-in gate rejected single-stock all-in:
+硬 all-in gate 拒绝单股 all-in，主要原因是：
 
-- no same-stock cross-family consensus;
-- official baseline Top5 conflicted with the main alpha candidates;
-- fallback support was weak;
-- StockMixer single-seed `002384` was weakened by real multi-seed disagreement.
+- 没有跨模型家族的同股共识；
+- 官方 baseline Top5 与主 alpha 候选冲突；
+- fallback 支持不足；
+- StockMixer 单 seed 的 `002384` 被真实 multi-seed 分歧削弱。
 
-The portfolio selector then compared a small set of safer submission candidates:
+随后 portfolio selector 在更安全的小候选集合中比较：
 
-| Candidate | Mean return | p05 return | Negative rate | Robust score |
+| 候选 | 平均收益 | p05 收益 | 负收益率 | 稳健分 |
 |---|---:|---:|---:|---:|
 | fusion_top2 | 3.6266% | 1.0165% | 0.0% | 0.0362 |
 | master_top3 | 1.6337% | -1.5286% | 40.0% | 0.0013 |
 | official_top5 | 0.6295% | -2.3151% | 60.0% | -0.0120 |
 | master_ms_top3 | -0.2746% | -5.8845% | 60.0% | -0.0445 |
 
-The fusion candidate is not all-in. It keeps the MASTER-supported `300308` as the anchor and caps the StockMixer attack signal `002384` below 50%.
+融合候选不是 all-in。它保留 MASTER 支持的 `300308` 作为锚，同时把 StockMixer 的进攻信号 `002384` 控制在 50% 以下。
 
-## Multi-Seed Findings
+## Multi-Seed 发现
 
-Real multi-seed runs used seeds `42,52,62`.
+真实 multi-seed 使用 seeds `42,52,62`。
 
-| Model | Single-seed Top1 | Multi-seed Top1 | Seed consistency | Interpretation |
+| 模型 | 单 seed Top1 | multi-seed Top1 | seed 一致性 | 解读 |
 |---|---:|---:|---:|---|
-| MASTER | 300308 | 300308 | 0.67, 2 unique | stable anchor |
-| StockMixer official | 002384 | 600522 | 0.33, 3 unique | single-seed Top1 is unstable |
-| TimeXer | 603296 | 603296 | 0.33, 3 unique | same Top1 after averaging, but weak seed agreement |
+| MASTER | 300308 | 300308 | 0.67, 2 unique | 稳健锚点 |
+| StockMixer official | 002384 | 600522 | 0.33, 3 unique | 单 seed Top1 不稳定 |
+| TimeXer | 603296 | 603296 | 0.33, 3 unique | 均值后 Top1 保持，但 seed 共识弱 |
 
-## Selector Summary
+## Selector 结论
 
-Three auxiliary selectors were used:
+本次使用了三类辅助 selector：
 
-1. Gate selector: rejected all-in, support score `0.375`.
-2. Portfolio selector: selected `fusion_top2`.
-3. Weight meta-learner: recommended capped top2/top3 concentration with max single-stock weight `0.60`.
+1. Gate selector：拒绝 all-in，支持分 `0.375`。
+2. Portfolio selector：选择 `fusion_top2`。
+3. Weight meta-learner：建议 capped top2/top3 集中度，单股最大权重 `0.60`。
 
-The selectors are auxiliary because only five recent online windows are available.
+这些 selector 只作为辅助判断，因为当前只有 5 个近期线上窗口，样本仍然很少。
 
-## Key Artifacts
+## 关键产物
 
 ```text
 outputs/latestA_ensemble_weights_20260529_wide/candidate_1.csv

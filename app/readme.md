@@ -111,9 +111,9 @@ Latest note: the current result is the aggressive Top1 allocation generated afte
 - 预测阶段满足 5 分钟限制。
 - 如后续引入外部数据或预训练模型，需要按赛事要求报备链接和 md5。
 
-# LatestA current submission
+# LatestA 当前提交结果
 
-Current `app/model/result.csv` and `app/output/result.csv` are updated to the 2026-05-30 online A-stage latestA fusion submission:
+当前 `app/model/result.csv` 和 `app/output/result.csv` 已更新为 2026-05-30 线上赛 A 阶段 latestA 融合提交：
 
 ```csv
 stock_id,weight
@@ -121,12 +121,12 @@ stock_id,weight
 002384,0.4278187772689215
 ```
 
-Generation logic:
+生成逻辑：
 
-- Data cutoff: 2026-05-29
-- all-in gate: single-stock all-in rejected
-- portfolio selector: selected `fusion_top2`
-- fusion weights: `75% MASTER single-seed + 25% StockMixer official multi-seed`
-- score processing: cross-sectional z-score, then `top2_softmax`
+- 数据截止日：2026-05-29
+- all-in gate：拒绝单股 all-in
+- portfolio selector：选择 `fusion_top2`
+- 融合权重：`75% MASTER single-seed + 25% StockMixer official multi-seed`
+- 分数处理：日截面 z-score 后使用 `top2_softmax`
 
-Detailed record: `docs/final_submission_latestA_2026_05_30.md`.
+详细记录：`docs/final_submission_latestA_2026_05_30.md`。

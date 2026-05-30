@@ -1,8 +1,8 @@
 # Stock Forecast for CSI 300 Competition
 
-## LatestA Final Submission - 2026-05-30
+## LatestA 最终提交 - 2026-05-30
 
-Current final A-stage submission has been updated to the robust fusion candidate:
+当前线上赛 A 阶段最终提交已更新为稳健融合候选：
 
 ```csv
 stock_id,weight
@@ -10,22 +10,22 @@ stock_id,weight
 002384,0.4278187772689215
 ```
 
-This result is synced to:
+该结果已同步到：
 
 ```text
 app/model/result.csv
 app/output/result.csv
 ```
 
-Selection summary:
+选择摘要：
 
-- Data cutoff: 2026-05-29.
-- Gate selector rejected single-stock all-in.
-- Portfolio selector chose `fusion_top2`.
-- Fusion weights: `75% MASTER single-seed + 25% StockMixer official multi-seed`.
-- Allocation: z-score blended scores with `top2_softmax`.
+- 数据截止日：2026-05-29。
+- Gate selector 拒绝单股 all-in。
+- Portfolio selector 选择 `fusion_top2`。
+- 融合权重：`75% MASTER single-seed + 25% StockMixer official multi-seed`。
+- 配权方式：融合分数日截面 z-score 后使用 `top2_softmax`。
 
-See `docs/final_submission_latestA_2026_05_30.md` for the full decision record.
+完整决策记录见：`docs/final_submission_latestA_2026_05_30.md`。
 
 ## 最新进展 2026-05-29
 

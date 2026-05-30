@@ -1,8 +1,8 @@
 # Current Status
 
-## LatestA Final Submission - 2026-05-30
+## LatestA 最终提交 - 2026-05-30
 
-The current files under `app/` are now the online A-stage latestA submission using data through 2026-05-29:
+当前 `app/` 下的结果文件已更新为线上赛 A 阶段 latestA 提交，使用数据截止到 2026-05-29：
 
 ```csv
 stock_id,weight
@@ -10,14 +10,14 @@ stock_id,weight
 002384,0.4278187772689215
 ```
 
-Decision:
+决策结论：
 
-- Hard all-in gate: rejected all-in.
-- Portfolio selector: selected `fusion_top2`.
-- Fusion recipe: `75% MASTER single-seed + 25% StockMixer official multi-seed`, z-score transform, `top2_softmax`.
-- Five-window replay for the selected candidate: mean `3.6266%`, p05 `1.0165%`, negative rate `0.0%`.
+- 硬 all-in gate：拒绝单股 all-in。
+- Portfolio selector：选择 `fusion_top2`。
+- 融合方案：`75% MASTER single-seed + 25% StockMixer official multi-seed`，日截面 z-score 后使用 `top2_softmax`。
+- 五窗口回放：平均收益 `3.6266%`，p05 收益 `1.0165%`，负收益率 `0.0%`。
 
-Main record: `docs/final_submission_latestA_2026_05_30.md`.
+主记录文档：`docs/final_submission_latestA_2026_05_30.md`。
 
 ## 当前阶段
 
