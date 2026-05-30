@@ -1,0 +1,33 @@
+{
+  "decision": "top3_defensive",
+  "selected_submission": "master_top3",
+  "selected_stock": "300308",
+  "gated_candidate_stock": "002384",
+  "reason": "存在共识，但 fallback/官方防守信号不够配合，降为 Top3 分散。",
+  "allin_allowed": false,
+  "agreement": {
+    "best_stock": "300308",
+    "best_stock_family_count": 1,
+    "best_industry": "electronics",
+    "best_industry_family_count": 2
+  },
+  "official_completely_different": true,
+  "candidate_in_official_top5": false,
+  "fallback_ok": false,
+  "max_core_top_strength": 6.3778775889571415,
+  "max_core_margin_z": 0.4214598435183884,
+  "submission_paths": {
+    "allin_candidate": "outputs\\final_submission_decider_latestA_20260529\\allin_candidate.csv",
+    "capped_top1_candidate": "outputs\\final_submission_decider_latestA_20260529\\capped_top1_candidate.csv",
+    "master_top3": "outputs\\final_submission_decider_latestA_20260529\\master_top3.csv",
+    "master_top5": "outputs\\final_submission_decider_latestA_20260529\\master_top5.csv",
+    "master_multiseed_top3": "outputs\\final_submission_decider_latestA_20260529\\master_multiseed_top3.csv",
+    "master_multiseed_top5": "outputs\\final_submission_decider_latestA_20260529\\master_multiseed_top5.csv",
+    "stockmixer_official_multiseed_top3": "outputs\\final_submission_decider_latestA_20260529\\stockmixer_official_multiseed_top3.csv",
+    "stockmixer_official_multiseed_top5": "outputs\\final_submission_decider_latestA_20260529\\stockmixer_official_multiseed_top5.csv",
+    "timexer_multiseed_top3": "outputs\\final_submission_decider_latestA_20260529\\timexer_multiseed_top3.csv",
+    "timexer_multiseed_top5": "outputs\\final_submission_decider_latestA_20260529\\timexer_multiseed_top5.csv",
+    "official_baseline_top5_equal": "outputs\\final_submission_decider_latestA_20260529\\official_baseline_top5_equal.csv",
+    "dynamic_switch": "outputs\\final_submission_decider_latestA_20260529\\dynamic_switch.csv"
+  }
+}

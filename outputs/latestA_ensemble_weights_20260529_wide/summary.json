@@ -1,0 +1,59 @@
+{
+  "models": [
+    "master",
+    "master_ms",
+    "stockmixer",
+    "stockmixer_ms",
+    "timexer",
+    "timexer_ms",
+    "baseline"
+  ],
+  "n_windows": 5,
+  "best": {
+    "weights": {
+      "master": 0.75,
+      "master_ms": 0.0,
+      "stockmixer": 0.0,
+      "stockmixer_ms": 0.25,
+      "timexer": 0.0,
+      "timexer_ms": 0.0,
+      "baseline": 0.0
+    },
+    "transform": "zscore",
+    "strategy": "top2_softmax",
+    "n": 5,
+    "mean_return": 0.03626611599827318,
+    "p05_return": 0.010164762623651255,
+    "std_return": 0.02071988557790626,
+    "negative_rate": 0.0,
+    "robust_score": 0.03616852591562224
+  },
+  "best_records": [
+    {
+      "date": "2026-04-17",
+      "return": 0.039953486407269034,
+      "top1": "688012"
+    },
+    {
+      "date": "2026-04-24",
+      "return": 0.016948598940212486,
+      "top1": "300394"
+    },
+    {
+      "date": "2026-04-30",
+      "return": 0.053281843619605584,
+      "top1": "603986"
+    },
+    {
+      "date": "2026-05-08",
+      "return": 0.008468803544510947,
+      "top1": "002371"
+    },
+    {
+      "date": "2026-05-15",
+      "return": 0.06267784747976785,
+      "top1": "002916"
+    }
+  ],
+  "warning": "Only five online windows; ensemble weights are auxiliary candidates, not an authority over hard all-in gates."
+}

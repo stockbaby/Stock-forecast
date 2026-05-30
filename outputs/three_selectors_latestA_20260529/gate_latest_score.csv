@@ -1,0 +1,2 @@
+selector,support_score,allow_allin,stock_agreement_families,industry_agreement_families,max_seed_vote,max_margin_z,max_top_strength,official_conflict,fallback_ok,reason
+gate_selector,0.375,False,1.0,2.0,1.0,2.5348,8.7596,True,False,"allow only when same-stock cross-family agreement, fallback support, and no official conflict all hold"

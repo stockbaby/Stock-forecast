@@ -1,0 +1,44 @@
+{
+  "selector": "portfolio_selector",
+  "selected_candidate": "fusion_top2",
+  "latest_submission": "outputs/latestA_ensemble_weights_20260529_wide/candidate_1.csv",
+  "leaderboard": [
+    {
+      "candidate": "fusion_top2",
+      "n": 5,
+      "mean_return": 0.03626611599827318,
+      "p05_return": 0.010164762623651255,
+      "std_return": 0.02071988557790626,
+      "negative_rate": 0.0,
+      "robust_score": 0.03616852591562224
+    },
+    {
+      "candidate": "master_top3",
+      "n": 5,
+      "mean_return": 0.016337246059678352,
+      "p05_return": -0.015285733818207659,
+      "std_return": 0.029531950661320402,
+      "negative_rate": 0.4,
+      "robust_score": 0.001311391485244423
+    },
+    {
+      "candidate": "official_top5",
+      "n": 5,
+      "mean_return": 0.006294937394950897,
+      "p05_return": -0.023150683184208497,
+      "std_return": 0.026909520458181548,
+      "negative_rate": 0.6,
+      "robust_score": -0.012007784311698739
+    },
+    {
+      "candidate": "master_ms_top3",
+      "n": 5,
+      "mean_return": -0.0027464346654253085,
+      "p05_return": -0.05884508779753792,
+      "std_return": 0.0491688006970562,
+      "negative_rate": 0.6,
+      "robust_score": -0.04446117873845832
+    }
+  ],
+  "note": "small candidate set; ranked by mean + 0.5*p05 - 0.25*std over five windows"
+}

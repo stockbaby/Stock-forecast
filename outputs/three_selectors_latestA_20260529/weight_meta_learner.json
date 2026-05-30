@@ -1,0 +1,18 @@
+{
+  "selector": "weight_meta_learner",
+  "recommended_model_family_weights": {
+    "master": 0.6289308176100629,
+    "stockmixer": 0.220125786163522,
+    "timexer": 0.025157232704402514,
+    "baseline": 0.04192872117400419,
+    "official": 0.08385744234800838
+  },
+  "max_single_stock_weight": 0.6,
+  "concentration_mode": "capped_top2_or_top3",
+  "notes": [
+    "initialized from robust fusion search",
+    "official baseline conflicts with alpha candidates: reduce concentration and add defense",
+    "StockMixer/TimeXer industry agreement: keep some industry-alpha exposure",
+    "baseline candidate has strong volume/price confirmation"
+  ]
+}

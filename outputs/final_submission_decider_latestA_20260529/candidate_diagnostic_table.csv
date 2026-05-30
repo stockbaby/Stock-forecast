@@ -1,0 +1,11 @@
+﻿source,family,top1,top1_industry,top5,margin_z,top_strength,seed_consistency,same_top1_models,top5_overlap_models,volume_price_confirmation
+master,master,300308,telecom,300308;002050;600160;002466;300014,0.2462,2.218,na,2,8,mixed; amount5/20=1.11; ret5=11.87%
+master_multiseed,master,300308,telecom,300308;002460;002384;300014;600111,0.8531,3.9784,0.67 (2 unique),2,11,mixed; amount5/20=1.11; ret5=11.87%
+stockmixer_official,stockmixer,002384,electronics,002384;600522;002371;000063;300308,0.1139,6.3779,1.00 (1 unique),1,11,mixed; amount5/20=0.95; ret5=-3.40%
+stockmixer_official_multiseed,stockmixer,600522,telecom,600522;000630;002384;002371;688008,2.2644,7.546,0.33 (3 unique),1,9,mixed; amount5/20=0.93; ret5=-3.72%
+timexer,timexer,603296,electronics,603296;603893;600460;688472;002049,0.4215,4.1866,na,2,7,mixed; amount5/20=0.87; ret5=-2.33%
+timexer_multiseed,timexer,603296,electronics,603296;002460;002475;688472;601138,0.1097,3.0799,0.33 (3 unique),2,8,mixed; amount5/20=0.87; ret5=-2.33%
+lightgbm_local_baseline,baseline,002625,military,002625;001979;000002;600482;000975,2.5348,8.7596,na,1,5,strong; amount5/20=1.53; ret5=5.18%
+official_baseline_top5,official_baseline,002493,oil_gas,002493;300347;600482;300251;600346,na,defensive,na,0,1,weak; amount5/20=0.66; ret5=-1.66%
+relation_postprocess_best,relation,300308,telecom,300308;002460;600111;002384;300014,na,last_holdout=nan%,na,2,11,mixed; amount5/20=1.11; ret5=11.87%
+dynamic_switch,switch,300308,telecom,300308,na,selected=primary,na,2,3,mixed; amount5/20=1.11; ret5=11.87%
