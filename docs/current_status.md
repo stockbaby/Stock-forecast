@@ -1,23 +1,23 @@
 # Current Status
 
-## LatestA 最终提交 - 2026-05-30
+## LatestA 最终提交 - 2026-06-26
 
-当前 `app/` 下的结果文件已更新为线上赛 A 阶段 latestA 提交，使用数据截止到 2026-05-29：
+当前 `app/` 下的结果文件已更新为线上赛 A 阶段 latestA 提交，数据截止日为 2026-06-26，目标交易区间为 2026-06-29 开盘买入、2026-07-03 开盘卖出：
 
 ```csv
 stock_id,weight
-300308,0.5721812227310785
-002384,0.4278187772689215
+601800,0.6
+000625,0.4
 ```
 
 决策结论：
 
-- 硬 all-in gate：拒绝单股 all-in。
-- Portfolio selector：选择 `fusion_top2`。
-- 融合方案：`75% MASTER single-seed + 25% StockMixer official multi-seed`，日截面 z-score 后使用 `top2_softmax`。
+- 硬 all-in gate：核心模型 Top1 分歧，拒绝单股 all-in。
+- Portfolio selector：选择 `fusion_top2_capped60`。
+- 融合方案：`75% MASTER seed42 + 25% StockMixer official multi-seed`，日截面 z-score 后使用 `top2_softmax`，并把单股权重上限压到 60%。
 - 五窗口回放：平均收益 `3.6266%`，p05 收益 `1.0165%`，负收益率 `0.0%`。
 
-主记录文档：`docs/final_submission_latestA_2026_05_30.md`。
+结果与相同日期的 metadata 已同步到 `app/model/` 和 `app/output/`。`scripts/validate_submission.py` 已验证输出格式；本窗口的诊断摘要已合并到本文，上一窗口记录保留在 `docs/final_submission_latestA_2026_05_30.md`。
 
 ## 当前阶段
 
@@ -32,7 +32,7 @@ app/output/result.csv
 
 ## 当前最佳方案
 
-当前最佳为：
+研发阶段的历史最佳后处理方案为：
 
 ```text
 MASTER official-rank prediction
@@ -52,7 +52,9 @@ stock_id,weight
 688008,0.06298713491811891
 ```
 
-## 结果对比
+该历史方案用于研发对照，不是当前 2026-06-26 镜像中固化的提交组合。
+
+## 历史结果对比
 
 | 候选 | 策略 | 验证均值 | 波动 | 判断 |
 |---|---|---:|---:|---|

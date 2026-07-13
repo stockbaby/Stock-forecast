@@ -175,8 +175,16 @@ def _eval_spec(daily_frames: dict[str, pd.DataFrame], weights: dict[str, float],
     }
 
 
-def _make_latest_submission(latest_root: Path, model_specs: dict[str, str], weights: dict[str, float], transform: str, strategy: str, top_k: int, temperature: float) -> pd.DataFrame:
-    latest_date_key = "20260529"
+def _make_latest_submission(
+    latest_root: Path,
+    latest_date_key: str,
+    model_specs: dict[str, str],
+    weights: dict[str, float],
+    transform: str,
+    strategy: str,
+    top_k: int,
+    temperature: float,
+) -> pd.DataFrame:
     merged = None
     for name, pattern in model_specs.items():
         pred = _load_model_prediction(latest_root, latest_date_key, pattern)
@@ -197,6 +205,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Search robust multi-model ensemble weights on recent online windows.")
     parser.add_argument("--holdout-root", default="outputs/recent_holdout_matrix_strict_full")
     parser.add_argument("--latest-root", default="outputs/latestA_20260529_strict")
+    parser.add_argument("--latest-date-key", default="20260529")
     parser.add_argument("--model-matrix", default="outputs/recent_holdout_matrix_strict_full_summary/model_top1_matrix.csv")
     parser.add_argument("--price-path", default="data/raw/stock_data.csv")
     parser.add_argument("--output-dir", default="outputs/latestA_ensemble_weights_20260529")
@@ -231,7 +240,16 @@ def main() -> None:
     (output_dir / "all_results.json").write_text(json.dumps(compact, ensure_ascii=False, indent=2), encoding="utf-8")
 
     for idx, row in enumerate(rows[: min(args.top_n, 10)], start=1):
-        sub = _make_latest_submission(Path(args.latest_root), model_specs, row["weights"], row["transform"], row["strategy"], args.top_k, temperature=0.6)
+        sub = _make_latest_submission(
+            Path(args.latest_root),
+            args.latest_date_key,
+            model_specs,
+            row["weights"],
+            row["transform"],
+            row["strategy"],
+            args.top_k,
+            temperature=0.6,
+        )
         sub.to_csv(output_dir / f"candidate_{idx}.csv", index=False)
     summary = {
         "models": selected,

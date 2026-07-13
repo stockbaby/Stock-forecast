@@ -11,18 +11,19 @@ APP_ROOT = APP_CODE_DIR.parent
 
 FINAL_SUBMISSION = pd.DataFrame(
     [
-        {"stock_id": "300308", "weight": 0.5721812227310785},
-        {"stock_id": "002384", "weight": 0.4278187772689215},
+        {"stock_id": "601800", "weight": 0.6},
+        {"stock_id": "000625", "weight": 0.4},
     ]
 )
 
 FINAL_METADATA = {
     "submission_source": "latest_inference",
-    "submission_date": "2026-05-29",
-    "expected_inference_date": "2026-05-29",
-    "method": "fusion_top2",
-    "method_detail": "75% MASTER single-seed + 25% StockMixer official multi-seed, z-score, top2_softmax",
-    "reproducibility_note": "Deterministic final A-stage package output selected by documented offline model/selector workflow.",
+    "submission_date": "2026-06-26",
+    "expected_inference_date": "2026-06-26",
+    "target_trade": "buy 2026-06-29 open, sell 2026-07-03 open",
+    "method": "fusion_top2_capped60",
+    "method_detail": "75% MASTER seed42 + 25% StockMixer official multi-seed, z-score, top2_softmax, capped at 60% per stock because core Top1 signals diverged.",
+    "reproducibility_note": "Deterministic final A-stage package output selected by documented offline model/selector workflow for the 2026-06-27/28 submission window.",
 }
 
 

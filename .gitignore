@@ -44,6 +44,7 @@ data/raw/*
 data/interim/*
 data/processed/*
 data/raw_train_*/
+data/raw_latestA_*/
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 !data/processed/.gitkeep
@@ -55,6 +56,8 @@ outputs/candidate_switch/
 outputs/holdout_*/
 outputs/final_submission_decider_latestA_*/
 outputs/latestA_ensemble_weights_*/
+outputs/latestA_*_strict*/
+outputs/package_audit_*/
 outputs/three_selectors_latestA_*/
 outputs/method_validation*/
 outputs/online_window_sim*/

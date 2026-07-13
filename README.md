@@ -1,230 +1,93 @@
-# Stock Forecast for CSI 300 Competition
+# 代码说明
 
-## LatestA 最终提交 - 2026-05-30
+## 环境配置
 
-当前线上赛 A 阶段最终提交已更新为稳健融合候选：
+- 镜像名称：`bdc2026`
+- Python：3.11
+- 主要依赖：`pandas>=2.0`、`numpy>=1.24`、`PyYAML>=6.0`
+- 运行阶段不联网。
+
+## 数据
+
+提交镜像中保留主办方要求的目录结构：
+
+```text
+/app/data/train.csv
+/app/data/test.csv
+```
+
+正式复现时，主办方可通过 `docker-compose.yml` 挂载下发数据到 `/app/data`。本提交包不额外引入未报备外部数据。
+
+## 预训练模型
+
+本方案不使用第三方预训练模型、embedding 或外部开源模型，因此无需报备开源模型链接和 md5。
+
+## 算法
+
+### 整体思路介绍
+
+研发阶段主要使用 `MASTER`、`StockMixer`、`TimeXer`、relation postprocess、multi-seed ensemble、Top-K/listwise objective 和 portfolio selector 等机器学习方法。最终 latestA 提交采用稳健融合候选：
+
+```text
+75% MASTER single-seed score
+25% StockMixer official multi-seed score
+daily cross-section z-score
+top2_softmax weighting
+```
+
+当前镜像固化的是 2026-06-26 数据窗口的最终组合：
 
 ```csv
 stock_id,weight
-300308,0.5721812227310785
-002384,0.4278187772689215
+601800,0.6
+000625,0.4
 ```
 
-该结果已同步到：
+### 针对性问题解决方案
 
-```text
-app/model/result.csv
-app/output/result.csv
+- 使用 hard all-in gate 拒绝单股 all-in，降低单票满仓风险。
+- 使用 `fusion_top2_capped60` 在两只候选之间动态分配权重，并将单股权重限制为 60%。
+- 使用 metadata 校验 `submission_source == latest_inference` 和 `submission_date == expected_inference_date`，避免再次出现预测日期错位。
+
+### 模型集成
+
+最终权重来自 `MASTER seed42` 与 `StockMixer official multi-seed` 的分数融合。离线训练、候选筛选和 selector 诊断过程已在文档中记录，镜像内固化为确定性输出，保证预测阶段 5 分钟内完成。
+
+## 训练流程
+
+运行：
+
+```bash
+bash /app/train.sh
 ```
 
-选择摘要：
+流程：
 
-- 数据截止日：2026-05-29。
-- Gate selector 拒绝单股 all-in。
-- Portfolio selector 选择 `fusion_top2`。
-- 融合权重：`75% MASTER single-seed + 25% StockMixer official multi-seed`。
-- 配权方式：融合分数日截面 z-score 后使用 `top2_softmax`。
+1. 执行 `/app/code/train.py`。
+2. 固定写出 latestA 最终提交组合。
+3. 校验 `stock_id`、股票数量、非负权重、权重和不超过 1。
+4. 写出 `/app/model/result.csv`、`/app/model/result.metadata.json`。
+5. 同步写出 `/app/output/result.csv`、`/app/output/result.metadata.json`。
 
-完整决策记录见：`docs/final_submission_latestA_2026_05_30.md`。
+## 推理流程
 
-## 最新进展 2026-05-29
+运行：
 
-当前 Top1/all-in gate 状态和后续调研方向见：
-
-```text
-docs/latest_progress_2026_05_29.md
-docs/multiseed_top1_holdout_20260517.md
-docs/latest_progress_2026_05_06.md
-docs/code_review_meeting_2026_05_07.md
-docs/code_review_meeting_2026_05_07.pptx
+```bash
+bash /test.sh
 ```
 
-当前 holdout 回放候选：
+流程：
 
-```csv
-stock_id,weight
-688981,1.0
-```
+1. `/test.sh` 调用 `/app/test.sh`。
+2. `/app/test.sh` 执行 `/app/code/test.py`。
+3. 读取 `/app/model/result.csv`。
+4. 校验结果格式和 metadata 日期。
+5. 复制生成 `/app/output/result.csv`。
 
-关键更新：
+## 其他注意事项
 
-- 新增 Top1 导向 all-in gate 和动态候选切换。
-- 新增多 seed Top1 holdout 评估和 all-in 推荐诊断文件。
-- MASTER / StockMixer 支持 Top1 margin 训练。
-- 当模型/融合结果一致性强时，`top1_weight` 从高风险备选升级为主候选。
-- Fixed true latest inference for unlabeled `T=2026-04-24`.
-- Added walk-forward online-window simulation.
-- Added concentrated and confidence-aware portfolio allocation.
-- Added MASTER/StockMixer candidate switching.
-- Added theme/momentum/breakout features.
-- Added portfolio-return training objective experiments.
-- Added multi-method validation script: `scripts/validate_multiple_methods.py`.
-
-本仓库用于沪深 300 成分股未来收益预测与 Top-5 组合生成，覆盖数据处理、特征工程、深度模型训练、组合后处理、Docker 提交目录整理和实验记录。
-
-当前推荐结果已经同步到：
-
-```text
-app/model/result.csv
-app/output/result.csv
-```
-
-当前最佳候选为 **MASTER official-rank 预测 + relation 2.0 多关系增强 + softmax 配权**。
-
-## 当前最佳
-
-最终候选：
-
-```csv
-stock_id,weight
-002422,0.4435093966463539
-688981,0.24835891346065442
-300433,0.1419101612088723
-688008,0.0883365840656386
-002049,0.07788494461848086
-```
-
-验证对比：
-
-| 候选 | 策略 | 91 日均值 | 91 日波动 | 结论 |
-|---|---|---:|---:|---|
-| 已提交 MASTER | `proportional_positive_thr0.0` | `0.01904` | `0.03941` | 原提交版 |
-| MASTER z-score softmax | `softmax_t0.6` | `0.02146` | `0.04904` | 分数标准化有效 |
-| MASTER relation best | `softmax_t0.6` | `0.02177` | `0.05253` | 行业关系增强 |
-| MASTER relation 2.0 stable | `softmax_t0.6` | `0.02210` | `0.05158` | 稳定增强 |
-| MASTER relation 2.1 stable | `softmax_t0.6` | `0.02216` | `0.05165` | regime 风险增强 |
-| MASTER relation 2.2 topk-regime | `softmax_t0.55` | `0.02219` | `0.05226` | 当前最佳 |
-
-更完整的实验报告见：
-
-```text
-docs/experiment_report_2026_04_27.md
-```
-
-## 主要结论
-
-- `MASTER` 是当前最强主模型，relation 2.0 后处理后超过之前提交版和行业关系版。
-- 行业信息直接作为 StockMixer 特征输入暂时是负增益。
-- 行业关系作为后处理信号有效，进一步扩展到 beta / 波动 / 流动性 / 相关性邻居后继续增益。
-- 多模型融合、TimeXer fast、近期窗口 MASTER 和朴素多 seed 平均暂未超过 MASTER relation 2.0 stable。
-- 当前 `app/` 已更新到最新最佳结果，可用于二次打包。
-
-## 目录
-
-```text
-.
-|-- app/                      # 官方提交目录
-|-- configs/                  # 训练与实验配置
-|-- data/                     # 本地数据，不建议提交大文件
-|-- docs/                     # 实验、状态、路线文档
-|-- outputs/                  # 预测与提交结果
-|-- scripts/                  # 数据、训练、评估、后处理脚本
-|-- src/                      # 特征、模型、训练、组合核心代码
-|-- Dockerfile                # Docker 打包入口
-|-- requirements.txt
-|-- requirements-docker.txt
-```
-
-## 常用命令
-
-### 复现当前最佳后处理
-
-```powershell
-D:\anaconda\envs\stock-forecast\python.exe scripts\relation_postprocess.py --prediction-path outputs/predictions/master_alpha_official_rank_predictions.csv --output-path outputs/submissions/result_master_relation_best.csv --metrics-path outputs/predictions/master_relation_best_metrics.json --mode rank_ind_mix --alpha -0.5 --strategy softmax_t0.6
-Copy-Item outputs/submissions/result_master_relation_best.csv app/model/result.csv -Force
-Copy-Item outputs/submissions/result_master_relation_best.csv app/output/result.csv -Force
-D:\anaconda\envs\stock-forecast\python.exe app/code/test.py
-```
-
-### 搜索 relation 2.0
-
-```powershell
-D:\anaconda\envs\stock-forecast\python.exe scripts\search_relation_v2.py --prediction-path outputs\predictions\master_alpha_official_rank_predictions.csv --output-dir outputs\relation_v2_master_probe --alphas=-0.7,-0.5,-0.3 --beta-alphas=-0.1,0,0.1 --vol-alphas=-0.1,0,0.1 --liquidity-alphas=-0.1,0,0.1 --corr-alphas=-0.1,0,0.1 --strategies softmax_t0.6 --caps none,3 --top-n 20
-```
-
-relation 2.0 稳定候选参数：
-
-```text
-alpha=-0.35
-beta_alpha=0.05
-vol_alpha=-0.15
-liquidity_alpha=0.10
-corr_alpha=0.10
-strategy=softmax_t0.6
-```
-
-relation 2.1 稳定候选在此基础上使用更细参数和 regime 风险惩罚：
-
-```text
-alpha=-0.35
-beta_alpha=0.05
-vol_alpha=-0.175
-liquidity_alpha=0.075
-corr_alpha=0.125
-regime_risk_alpha=-0.05
-strategy=softmax_t0.6
-```
-
-relation 2.2 topk-regime 候选进一步使用更集中的配权温度，并保持 20/40/60/90 日窗口均不低于 relation 2.1：
-
-```text
-alpha=-0.325
-beta_alpha=0.05
-vol_alpha=-0.20
-liquidity_alpha=0.10
-corr_alpha=0.125
-regime_risk_alpha=-0.075
-strategy=softmax_t0.55
-```
-
-### 训练 MASTER official-rank
-
-```powershell
-D:\anaconda\envs\stock-forecast\python.exe scripts\train_master_baseline.py --config configs/master_alpha_official_rank.yaml
-```
-
-### 训练 StockMixer official-rank
-
-```powershell
-D:\anaconda\envs\stock-forecast\python.exe scripts\train_stockmixer_baseline.py --config configs/stockmixer_alpha_official_rank.yaml
-```
-
-### 运行组合候选搜索
-
-```powershell
-D:\anaconda\envs\stock-forecast\python.exe scripts\search_portfolio_candidates.py --output-dir outputs/portfolio_search_core --models master_official stockmixer_official itransformer ensemble_alpha --grid-step 0.25 --max-ensemble-models 3 --top-n 20
-```
-
-### 训练 TimeXer fast
-
-```powershell
-D:\anaconda\envs\stock-forecast\python.exe scripts\train_timexer_backbone.py --config configs/timexer_alpha_fast.yaml
-```
-
-## Docker 打包
-
-在 `D:\data_competition` 下执行：
-
-```powershell
-docker buildx build --platform linux/amd64 -t bdc2026 .
-docker run --rm -v D:\data_competition\app\output:/app/output -v D:\data_competition\app\temp:/app/temp bdc2026 bash /app/test.sh
-docker save -o PastoralBabyBoom.tar bdc2026:latest
-```
-
-当前 `test.sh` 会读取 `/app/model/result.csv` 并生成 `/app/output/result.csv`，预测阶段不重新训练。
-
-## 文档索引
-
-- `docs/experiment_report_2026_04_27.md`：最新实验、评估、比对与结论
-- `docs/relation_v2_report_2026_04_27.md`：relation 2.0 与多 seed MASTER 追加实验
-- `docs/current_status.md`：当前状态摘要
-- `docs/model_survey.md`：模型路线与实验判断
-- `docs/code_spec_alignment.md`：提交规范对齐
-- `docs/data_pipeline.md`：数据流程
-- `docs/benchmark_comparison.md`：早期 benchmark 对比
-
-## 注意
-
-- 大文件、tar 包和中间搜索输出不应提交到 git。
-- 外部数据或预训练模型如需进入正式方案，必须按赛事要求报备链接和 md5。
-- 当前最佳是后处理候选，不代表 TimeXer / HIST 完整训练路线已被充分穷尽。
+- 输出文件必须是 `/app/output/result.csv`。
+- 预测阶段不联网、不重新训练全量历史模型。
+- 当前包大小远低于 10G。
+- 本窗口的状态与决策摘要见 `docs/current_status.md`；上一窗口的完整记录见 `docs/final_submission_latestA_2026_05_30.md`。Docker 镜像中不复制 `docs/` 目录，以减少提交体积和泄露风险。

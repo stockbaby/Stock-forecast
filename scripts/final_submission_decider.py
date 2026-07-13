@@ -528,6 +528,7 @@ def main() -> None:
     parser.add_argument("--tail-price", default="data/interim/akshare_tail_partial_20260522.csv")
     parser.add_argument("--holdout-summary", default="outputs/official_baseline_holdout/combined_summary_with_official.csv")
     parser.add_argument("--latest-strict-dir", default="")
+    parser.add_argument("--latest-date-key", default="20260529")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -535,7 +536,7 @@ def main() -> None:
 
     model_specs = MODEL_SPECS
     if args.latest_strict_dir:
-        root = Path(args.latest_strict_dir) / "20260529"
+        root = Path(args.latest_strict_dir) / args.latest_date_key
         model_specs = [
             {
                 "name": "master",
